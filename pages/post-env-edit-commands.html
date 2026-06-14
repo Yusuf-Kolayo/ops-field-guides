@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Laravel Remote .env Change Guide - Post-Edit Commands and Verification</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c27;
+      --card:      #1e2336;
+      --border:    #2a3050;
+      --accent:    #4f8ef7;
+      --accent2:   #7c5cfc;
+      --green:     #3dd68c;
+      --red:       #f56565;
+      --orange:    #f6ad55;
+      --yellow:    #f6e05e;
+      --text:      #e2e8f0;
+      --muted:     #7a869a;
+      --code-bg:   #12151f;
+      --radius:    12px;
+      --radius-sm: 7px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    header {
+      background: linear-gradient(135deg, #0f182a 0%, #14203c 50%, #141828 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 56px 24px 48px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(79,142,247,.12);
+      border: 1px solid rgba(79,142,247,.3);
+      color: #8ab4ff;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: clamp(26px, 5vw, 42px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      background: linear-gradient(135deg, #e2e8f0, #4f8ef7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 760px;
+      margin: 0 auto 28px;
+    }
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta-pill i { color: var(--accent); font-size: 11px; }
+    .meta-pill.green-pill { border-color: rgba(61,214,140,.35); }
+    .meta-pill.green-pill i { color: var(--green); }
+    .meta-pill.orange-pill { border-color: rgba(246,173,85,.35); }
+    .meta-pill.orange-pill i { color: var(--orange); }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      max-width: 1180px;
+      margin: 0 auto;
+      gap: 0;
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 32px 0 32px 24px;
+      border-right: 1px solid var(--border);
+    }
+    aside::-webkit-scrollbar { width: 4px; }
+    aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding-left: 4px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .15s;
+      margin-bottom: 2px;
+    }
+    .nav-link:hover, .nav-link.active {
+      background: rgba(79,142,247,.1);
+      color: var(--accent);
+    }
+    .nav-link i { width: 16px; text-align: center; font-size: 12px; }
+    .nav-num {
+      margin-left: auto;
+      background: var(--border);
+      color: var(--muted);
+      font-size: 10px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    main {
+      padding: 40px 40px 80px;
+      min-width: 0;
+    }
+
+    .section {
+      margin-bottom: 64px;
+      scroll-margin-top: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+    .icon-blue   { background: rgba(79,142,247,.15); color: var(--accent); }
+    .icon-purple { background: rgba(124,92,252,.15); color: var(--accent2); }
+    .icon-green  { background: rgba(61,214,140,.15); color: var(--green); }
+    .icon-red    { background: rgba(245,101,101,.15); color: var(--red); }
+    .icon-orange { background: rgba(246,173,85,.15); color: var(--orange); }
+    .icon-yellow { background: rgba(246,224,94,.15); color: var(--yellow); }
+
+    .section-title-wrap h2 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      margin-bottom: 3px;
+    }
+    .section-title-wrap p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .steps { display: flex; flex-direction: column; gap: 16px; }
+    .step {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .step-num {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: rgba(79,142,247,.15);
+      border: 1px solid rgba(79,142,247,.3);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-num.step-green {
+      background: rgba(61,214,140,.15);
+      border-color: rgba(61,214,140,.3);
+      color: var(--green);
+    }
+    .step-num.step-red {
+      background: rgba(245,101,101,.15);
+      border-color: rgba(245,101,101,.3);
+      color: var(--red);
+    }
+    .step-body h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .step-body p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .code-bar .lang {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .code-bar .lang i { color: var(--accent); }
+    .code-bar .dots { display: flex; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+    pre {
+      padding: 16px 18px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      overflow-x: auto;
+      color: #c9d1e0;
+    }
+    pre .cmd  { color: #79c0ff; }
+    pre .flag { color: #d2a8ff; }
+    pre .arg  { color: #a8d8a8; }
+    pre .out  { color: var(--muted); }
+    pre .hi   { color: var(--red); font-weight: 600; }
+    pre .ok   { color: var(--green); }
+    pre .warn { color: var(--orange); }
+    pre .comment { color: #4a5568; font-style: italic; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 16px 0; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .card-icon { font-size: 20px; margin-bottom: 10px; }
+    .card h4 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+    .card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    .callout {
+      display: flex;
+      gap: 14px;
+      padding: 16px 18px;
+      border-radius: var(--radius-sm);
+      margin: 14px 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .callout i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+    .callout-tip    { background: rgba(61,214,140,.08);  border: 1px solid rgba(61,214,140,.2);  color: #a0f0cc; }
+    .callout-tip i  { color: var(--green); }
+    .callout-warn   { background: rgba(246,173,85,.08);  border: 1px solid rgba(246,173,85,.2);  color: #fbd38d; }
+    .callout-warn i { color: var(--orange); }
+    .callout-danger { background: rgba(245,101,101,.08); border: 1px solid rgba(245,101,101,.2); color: #fca5a5; }
+    .callout-danger i { color: var(--red); }
+    .callout-info   { background: rgba(79,142,247,.08);  border: 1px solid rgba(79,142,247,.2);  color: #93c5fd; }
+    .callout-info i { color: var(--accent); }
+
+    .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid rgba(42,48,80,.5);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge-pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .pill-red    { background: rgba(245,101,101,.15); color: #fca5a5; }
+    .pill-orange { background: rgba(246,173,85,.15);  color: #fbd38d; }
+    .pill-green  { background: rgba(61,214,140,.15);  color: #6ee7b7; }
+    .pill-blue   { background: rgba(79,142,247,.15);  color: #93c5fd; }
+    .pill-purple { background: rgba(124,92,252,.15);  color: #c4b5fd; }
+
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #93c5fd;
+    }
+
+    .checklist { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+    }
+    .check-item .icon-status {
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; flex-shrink: 0;
+    }
+    .status-done { background: rgba(61,214,140,.15); color: var(--green); }
+    .status-warn { background: rgba(246,173,85,.15); color: var(--orange); }
+    .status-todo { background: rgba(79,142,247,.15); color: var(--accent); }
+    .check-item span { flex: 1; }
+    .check-item .step-label { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 32px 24px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    footer span { color: var(--accent); }
+
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { padding: 24px 18px 60px; }
+    }
+  </style>
+  <link rel="stylesheet" href="../assets/theme.css" />
+  <script src="../assets/theme-init.js"></script>
+</head>
+<body>
+
+  <a href="../index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Home</a>  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme"></button>
+
+<header>
+  <div class="badge"><i class="fa-solid fa-gear"></i> Laravel Remote Operations</div>
+  <h1>Post-.env Edit Commands<br>Remote Server Field Guide</h1>
+  <p>A practical guide for what to run after editing a Laravel <code>.env</code> file on a remote server so new values actually load in production, queues, and PHP-FPM workers.</p>
+  <div class="meta-pills">
+    <span class="meta-pill"><i class="fa-solid fa-server"></i> vps01.example.net</span>
+    <span class="meta-pill"><i class="fa-solid fa-folder-tree"></i> portal-app.example.net/client-backend</span>
+    <span class="meta-pill green-pill"><i class="fa-solid fa-check"></i> Confirmed Working Procedure</span>
+    <span class="meta-pill orange-pill"><i class="fa-solid fa-code"></i> Laravel + cPanel/EA-PHP</span>
+    <span class="meta-pill"><i class="fa-solid fa-calendar"></i> May 2026</span>
+  </div>
+</header>
+
+<div class="layout">
+
+<aside>
+  <div style="padding: 12px 0 20px 4px;">
+    <p class="sidebar-label">Contents</p>
+    <a href="#s1" class="nav-link"><i class="fa-solid fa-circle-question"></i> Why .env Changes Fail <span class="nav-num">1</span></a>
+    <a href="#s2" class="nav-link"><i class="fa-solid fa-folder-open"></i> Enter The Right Directory <span class="nav-num">2</span></a>
+    <a href="#s3" class="nav-link"><i class="fa-solid fa-terminal"></i> Commands To Run <span class="nav-num">3</span></a>
+    <a href="#s4" class="nav-link"><i class="fa-solid fa-repeat"></i> Reload PHP-FPM <span class="nav-num">4</span></a>
+    <a href="#s5" class="nav-link"><i class="fa-solid fa-vial-circle-check"></i> Verify New Values <span class="nav-num">5</span></a>
+    <a href="#s6" class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Troubleshooting <span class="nav-num">6</span></a>
+    <a href="#s7" class="nav-link"><i class="fa-solid fa-list-check"></i> Quick Checklist <span class="nav-num">7</span></a>
+  </div>
+</aside>
+
+<main>
+  <section class="section" id="s1">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-circle-question"></i></div>
+      <div class="section-title-wrap">
+        <h2>Why .env Changes Sometimes Fail On Remote Servers</h2>
+        <p>Laravel config caching and long-running PHP processes are usually the reason</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">
+      Editing <code>.env</code> on a remote server does not always update the running application immediately. In Laravel, values from <code>.env</code> are normally loaded into config first. If configuration has been cached, or if PHP-FPM workers are still holding old state, the app can continue serving old values even though the file on disk was already changed.
+    </p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">1</div>
+        <h4>Config Cache</h4>
+        <p><code>php artisan config:cache</code> stores config in a compiled cache file. Laravel then serves config from cache, not directly from the updated <code>.env</code>.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">2</div>
+        <h4>Queue Workers</h4>
+        <p>Queue workers may continue running old in-memory config until you restart them with <code>php artisan queue:restart</code>.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">3</div>
+        <h4>PHP-FPM Workers</h4>
+        <p>PHP-FPM can keep worker processes alive. Reloading the correct PHP-FPM service forces new workers to start with fresh environment and config state.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">4</div>
+        <h4>Wrong Directory</h4>
+        <p>If you run Artisan outside the Laravel project root, you get <code>Could not open input file: artisan</code> and nothing is actually cleared or rebuilt.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>
+        <strong>Real example from this server:</strong> the new environment variables only started loading correctly after clearing Laravel caches, restarting queues, and reloading the correct EA-PHP FPM services.
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s2">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-folder-open"></i></div>
+      <div class="section-title-wrap">
+        <h2>First Step: Enter The Correct Laravel Directory</h2>
+        <p>Artisan commands only work inside the actual Laravel app root</p>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num step-red">1</div>
+        <div class="step-body">
+          <h4>Do not assume the domain directory is the Laravel root</h4>
+          <p>On this server, running Artisan in <code>portal-app.example.net</code> failed because the Laravel app was actually inside <code>client-backend</code>.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash - incorrect location</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">cd</span> <span class="arg">portal-app.example.net</span>
+<span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">config:clear</span>
+<span class="hi">Could not open input file: artisan</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num step-green">2</div>
+        <div class="step-body">
+          <h4>Move into the actual Laravel application directory</h4>
+          <p>Once inside the correct folder, Artisan commands work normally.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash - correct location</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">cd</span> <span class="arg">portal-app.example.net/client-backend</span>
+<span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">about</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div>
+        <strong>Quick sanity check:</strong> before running any Laravel maintenance command, confirm you can see files like <code>artisan</code>, <code>bootstrap/</code>, <code>config/</code>, and <code>app/</code> in the current directory.
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s3">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-terminal"></i></div>
+      <div class="section-title-wrap">
+        <h2>Commands To Run After Editing .env</h2>
+        <p>The recommended Laravel sequence for remote production updates</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">
+      After saving the new values into the remote <code>.env</code> file, run the following commands from the Laravel root. This sequence removes stale cache, rebuilds config, and restarts queue workers so the new values are consistently used.
+    </p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash - recommended post-.env update sequence</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="cmd">cd</span> <span class="arg">~/portal-app.example.net/client-backend</span>
+
+<span class="comment"># 1. Clear all cached Laravel bootstrap artifacts</span>
+<span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">optimize:clear</span>
+
+<span class="comment"># 2. Rebuild configuration cache from the new .env values</span>
+<span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">config:cache</span>
+
+<span class="comment"># 3. Restart queue workers so they re-bootstrap with fresh config</span>
+<span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">queue:restart</span></pre>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Command</th><th>Purpose</th><th>When To Use</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>php artisan config:clear</code></td>
+            <td>Removes cached config only</td>
+            <td>Useful for quick testing, but not a complete reset</td>
+          </tr>
+          <tr>
+            <td><code>php artisan optimize:clear</code></td>
+            <td>Clears config, route, view, event, cache, and compiled bootstrap files</td>
+            <td>Best first command after remote maintenance</td>
+          </tr>
+          <tr>
+            <td><code>php artisan config:cache</code></td>
+            <td>Rebuilds optimized config cache from current <code>.env</code></td>
+            <td>Run after clearing cache in production</td>
+          </tr>
+          <tr>
+            <td><code>php artisan queue:restart</code></td>
+            <td>Signals queue workers to restart cleanly</td>
+            <td>Required if queues use config-dependent values</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div>
+        <strong>Do not stop at <code>config:clear</code> only.</strong> In production, you normally want a clean clear-and-rebuild cycle. Clearing without rebuilding can leave performance optimizations disabled until the next deployment step.
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s4">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-repeat"></i></div>
+      <div class="section-title-wrap">
+        <h2>Reload The Correct PHP-FPM Service</h2>
+        <p>Especially important on cPanel servers with multiple EA-PHP versions</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">
+      On this server, Laravel still held old values until the active PHP-FPM services were reloaded. The generic <code>php-fpm.service</code> did not exist, so the correct EA-PHP services had to be identified and reloaded directly.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Try the generic reload first</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo</span> <span class="cmd">systemctl</span> <span class="arg">reload</span> <span class="arg">php-fpm</span></pre>
+          </div>
+          <p>If the unit does not exist, inspect the available PHP-FPM services on the machine.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>List PHP-related systemd units</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">systemctl</span> <span class="arg">list-unit-files</span> <span class="arg">|</span> <span class="cmd">grep</span> <span class="arg">php</span>
+
+<span class="out">apache_php_fpm.service</span>
+<span class="out">cpanel_php_fpm.service</span>
+<span class="out">ea-php82-php-fpm.service</span>
+<span class="out">ea-php83-php-fpm.service</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num step-green">3</div>
+        <div class="step-body">
+          <h4>Reload the active EA-PHP services</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash - confirmed working commands</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo</span> <span class="cmd">systemctl</span> <span class="arg">reload</span> <span class="arg">ea-php82-php-fpm</span>
+<span class="cmd">sudo</span> <span class="cmd">systemctl</span> <span class="arg">reload</span> <span class="arg">ea-php83-php-fpm</span></pre>
+          </div>
+          <p>After reloading these services, the environment-backed values began loading correctly.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div>
+        <strong>cPanel note:</strong> a server may run multiple PHP versions side by side. If the site pool is attached to <code>ea-php82</code> or <code>ea-php83</code>, reloading only a generic service will not help because the real workers belong to those version-specific units.
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s5">
+    <div class="section-header">
+      <div class="section-icon icon-yellow"><i class="fa-solid fa-vial-circle-check"></i></div>
+      <div class="section-title-wrap">
+        <h2>Verify That Laravel Sees The New Values</h2>
+        <p>Check config values directly instead of guessing from browser behavior</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">
+      The safest verification step is to inspect Laravel config directly after rebuilding cache. If the value appears correctly in <code>config()</code>, the application has the updated setting.
+    </p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash + tinker</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">tinker</span>
+
+<span class="comment"># Example checks inside Tinker:</span>
+<span class="cmd">config</span>(<span class="arg">'services.internal_pdf.secret'</span>);
+<span class="cmd">config</span>(<span class="arg">'services.cron.secret_token'</span>);
+<span class="cmd">config</span>(<span class="arg">'database.connections.lab_cleaning_services.secret_key_live'</span>);
+<span class="cmd">config</span>(<span class="arg">'database.connections.imperium_waste_services.bvn'</span>);</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div>
+        <strong>Important:</strong> when debugging a production Laravel issue, prefer <code>config('...')</code> for verification. That tells you what the app is actually using after cache and bootstrapping, which is more useful than checking the raw file alone.
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s6">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="section-title-wrap">
+        <h2>Troubleshooting When New .env Values Still Do Not Load</h2>
+        <p>The usual causes after you already ran the standard commands</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Symptom</th><th>Likely Cause</th><th>What To Check</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Artisan says file not found</td>
+            <td>Wrong working directory</td>
+            <td>Move into the Laravel root where <code>artisan</code> exists</td>
+          </tr>
+          <tr>
+            <td>Web requests still use old config</td>
+            <td>PHP-FPM workers not reloaded</td>
+            <td>Reload the actual EA-PHP FPM service in use</td>
+          </tr>
+          <tr>
+            <td>Queued jobs use old value</td>
+            <td>Workers still running old bootstrap state</td>
+            <td>Run <code>php artisan queue:restart</code></td>
+          </tr>
+          <tr>
+            <td>One variable behaves strangely</td>
+            <td>Duplicate key in <code>.env</code></td>
+            <td>Search for repeated variable names; last one wins</td>
+          </tr>
+          <tr>
+            <td>Correct file, wrong runtime value</td>
+            <td>Config cache not rebuilt or server override exists</td>
+            <td>Run Tinker and inspect <code>config(...)</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div>
+        <strong>Do not edit remote <code>.env</code> and stop there.</strong> On a production Laravel server, file edits alone are often insufficient. You need the matching cache and process refresh steps, or the change may appear random and unreliable.
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="s7">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-list-check"></i></div>
+      <div class="section-title-wrap">
+        <h2>Quick Operational Checklist</h2>
+        <p>A short repeatable sequence for future remote maintenance</p>
+      </div>
+    </div>
+
+    <div class="checklist">
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span>Edit the correct remote <code>.env</code> file</span>
+        <span class="step-label">Step 1</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span>Change into the real Laravel root, not just the domain directory</span>
+        <span class="step-label">Step 2</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span>Run <code>php artisan optimize:clear</code></span>
+        <span class="step-label">Step 3</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span>Run <code>php artisan config:cache</code></span>
+        <span class="step-label">Step 4</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span>Run <code>php artisan queue:restart</code></span>
+        <span class="step-label">Step 5</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-warn"><i class="fa-solid fa-rotate"></i></div>
+        <span>Reload the active PHP-FPM service such as <code>ea-php82-php-fpm</code> or <code>ea-php83-php-fpm</code></span>
+        <span class="step-label">Step 6</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-todo"><i class="fa-solid fa-vial"></i></div>
+        <span>Verify with <code>php artisan tinker</code> and inspect <code>config(...)</code></span>
+        <span class="step-label">Step 7</span>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> final reference command set</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="cmd">cd</span> <span class="arg">~/portal-app.example.net/client-backend</span>
+<span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">optimize:clear</span>
+<span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">config:cache</span>
+<span class="cmd">php</span> <span class="arg">artisan</span> <span class="arg">queue:restart</span>
+<span class="cmd">sudo</span> <span class="cmd">systemctl</span> <span class="arg">reload</span> <span class="arg">ea-php82-php-fpm</span>
+<span class="cmd">sudo</span> <span class="cmd">systemctl</span> <span class="arg">reload</span> <span class="arg">ea-php83-php-fpm</span></pre>
+    </div>
+  </section>
+</main>
+</div>
+
+<footer>
+  Prepared as a companion to <span>guide-04.html</span> for repeatable Laravel remote-server operations after editing <code>.env</code>.
+</footer>
+
+<script src="../assets/private-values-loader.js" data-secret-src="../secrets/private-values.json"></script>
+<script src="../assets/theme-toggle.js"></script>
+</body>
+</html>

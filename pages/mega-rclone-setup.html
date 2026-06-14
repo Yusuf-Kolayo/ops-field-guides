@@ -1,0 +1,1555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MEGA S4 Cloud Storage Setup with rclone — Field Guide</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --muted: #8b949e;
+      --accent: #4f8ef7;
+      --accent2: #7c5cfc;
+      --green: #3dd68c;
+      --red: #f56565;
+      --orange: #f6ad55;
+      --yellow: #f6e05e;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, rgba(79,142,247,.1) 0%, rgba(124,92,252,.1) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 48px 24px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(79,142,247, 0.1);
+      border: 1px solid rgba(79,142,247, 0.2);
+      color: var(--accent);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    header h1 {
+      font-size: 2.5em;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      color: var(--muted);
+      max-width: 680px;
+      margin: 0 auto 20px;
+      font-size: 15px;
+    }
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 16px;
+    }
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(79,142,247, 0.05);
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta-pill i { color: var(--accent); font-size: 11px; }
+
+    /* ── LAYOUT ─────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 0;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* ── SIDEBAR ────────────────────────────────── */
+    aside {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      max-height: calc(100vh - 100px);
+      position: sticky;
+      top: 0;
+      overflow-y: auto;
+    }
+    aside::-webkit-scrollbar { width: 4px; }
+    aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .sidebar-label {
+      padding: 0 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 20px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .nav-link:hover, .nav-link.active {
+      color: var(--text);
+      background: rgba(79,142,247, 0.1);
+      border-left: 2px solid var(--accent);
+      padding-left: 18px;
+    }
+    .nav-link i { width: 16px; text-align: center; font-size: 12px; }
+    .nav-num {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(79,142,247, 0.1);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* ── MAIN ───────────────────────────────────── */
+    main {
+      padding: 0;
+      background: var(--bg);
+    }
+
+    /* ── SECTION ────────────────────────────────– */
+    .section {
+      padding: 48px 60px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .section-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    .icon-blue   { background: rgba(79,142,247,.15); color: var(--accent); }
+    .icon-purple { background: rgba(124,92,252,.15); color: var(--accent2); }
+    .icon-green  { background: rgba(61,214,140,.15); color: var(--green); }
+    .icon-red    { background: rgba(245,101,101,.15); color: var(--red); }
+    .icon-orange { background: rgba(246,173,85,.15); color: var(--orange); }
+    .icon-yellow { background: rgba(246,224,94,.15); color: var(--yellow); }
+
+    .section-title-wrap h2 {
+      font-size: 1.8em;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .section-title-wrap p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* ── STEP / CALLOUT ─────────────────────────– */
+    .steps { display: flex; flex-direction: column; gap: 16px; }
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .step-num {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(79,142,247, 0.15);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+    .step-body h4 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .step-body p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+
+    /* ── CODE BLOCK ─────────────────────────────– */
+    .code-block {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin: 12px 0;
+    }
+    .code-bar {
+      background: rgba(0,0,0,0.5);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .code-bar .lang { display: flex; align-items: center; gap: 6px; }
+    .code-bar .lang i { color: var(--accent); }
+    .code-bar .dots { display: flex; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+    pre {
+      padding: 16px;
+      overflow-x: auto;
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      line-height: 1.5;
+      margin: 0;
+    }
+    pre .cmd  { color: #79c0ff; }
+    pre .flag { color: #d2a8ff; }
+    pre .arg  { color: #a8d8a8; }
+    pre .out  { color: var(--muted); }
+    pre .hi   { color: var(--red); font-weight: 600; }
+    pre .ok   { color: var(--green); }
+    pre .comment { color: #4a5568; font-style: italic; }
+    pre .warn { color: var(--orange); font-weight: 600; }
+
+    /* ── INFO CARDS ─────────────────────────────– */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 16px 0; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+    .card-icon { font-size: 20px; margin-bottom: 10px; }
+    .card h4 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+    .card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── CALLOUTS ───────────────────────────────– */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    .callout i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+    .callout-tip    { background: rgba(61,214,140,.08);  border: 1px solid rgba(61,214,140,.2);  color: #a0f0cc; }
+    .callout-tip i  { color: var(--green); }
+    .callout-warn   { background: rgba(246,173,85,.08);  border: 1px solid rgba(246,173,85,.2);  color: #fbd38d; }
+    .callout-warn i { color: var(--orange); }
+    .callout-danger { background: rgba(245,101,101,.08); border: 1px solid rgba(245,101,101,.2); color: #fca5a5; }
+    .callout-danger i { color: var(--red); }
+    .callout-info   { background: rgba(79,142,247,.08);  border: 1px solid rgba(79,142,247,.2);  color: #93c5fd; }
+    .callout-info i { color: var(--accent); }
+
+    /* ── TABLE ──────────────────────────────────– */
+    .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: rgba(79,142,247, 0.05);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge-pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .pill-red    { background: rgba(245,101,101,.15); color: #fca5a5; }
+    .pill-orange { background: rgba(246,173,85,.15);  color: #fbd38d; }
+    .pill-green  { background: rgba(61,214,140,.15);  color: #6ee7b7; }
+    .pill-blue   { background: rgba(79,142,247,.15);  color: #93c5fd; }
+    .pill-purple { background: rgba(124,92,252,.15);  color: #c4b5fd; }
+
+    /* ── DIVIDER ────────────────────────────────– */
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+    /* ── INLINE CODE ────────────────────────────– */
+    code {
+      background: rgba(79,142,247, 0.1);
+      color: var(--accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 13px;
+    }
+
+    /* ── PROGRESS / STATUS CHECKLIST ───────────– */
+    .checklist { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      background: rgba(79,142,247, 0.05);
+      border-radius: 6px;
+      border-left: 2px solid var(--border);
+    }
+    .check-item .icon-status { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+    .status-done  { background: rgba(61,214,140,.15); color: var(--green); }
+    .status-warn  { background: rgba(246,173,85,.15); color: var(--orange); }
+    .status-todo  { background: rgba(79,142,247,.15); color: var(--accent); }
+    .check-item span { flex: 1; }
+    .check-item .step-label { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+    /* ── FOOTER ─────────────────────────────────– */
+    footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    /* ── RESPONSIVE ─────────────────────────────– */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { display: none; }
+      .section { padding: 32px 20px; }
+    }
+  </style>
+  <link rel="stylesheet" href="../assets/theme.css" />
+  <script src="../assets/theme-init.js"></script>
+</head>
+<body>
+
+  <a href="../index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Home</a>  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme"></button>
+
+<!-- ═══════════════════════════════════════════ HEADER -->
+<header>
+  <div class="badge"><i class="fa-solid fa-cloud-arrow-up"></i> MEGA Cloud Storage</div>
+  <h1>MEGA S4 Cloud Storage Setup<br>with rclone</h1>
+  <p>A complete, hands-on guide to configuring MEGA cloud storage (20GB free tier) with rclone for automated database backups on a CentOS VPS — covering installation, MEGA authentication, PHP integration, rclone configuration, and production cron setup.</p>
+  <div class="meta-pills">
+    <span class="meta-pill"><i class="fa-brands fa-centos"></i> CentOS / RHEL / AlmaLinux</span>
+    <span class="meta-pill"><i class="fa-solid fa-server"></i> VPS Deployment</span>
+    <span class="meta-pill"><i class="fa-brands fa-php"></i> PHP 7.4+</span>
+    <span class="meta-pill"><i class="fa-solid fa-database"></i> MySQL Backup</span>
+    <span class="meta-pill"><i class="fa-solid fa-lock"></i> MEGA Free Plan</span>
+    <span class="meta-pill"><i class="fa-solid fa-calendar"></i> June 2026</span>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- ═══════════════════════════════════════════ SIDEBAR -->
+<aside>
+  <div style="padding: 12px 0 20px 4px;">
+    <p class="sidebar-label">Contents</p>
+    <a href="#s1"  class="nav-link"><i class="fa-solid fa-circle-info"></i> Overview <span class="nav-num">1</span></a>
+    <a href="#s2"  class="nav-link"><i class="fa-solid fa-list-check"></i> Prerequisites <span class="nav-num">2</span></a>
+    <a href="#s3"  class="nav-link"><i class="fa-solid fa-download"></i> Installing rclone <span class="nav-num">3</span></a>
+    <a href="#s4"  class="nav-link"><i class="fa-solid fa-key"></i> MEGA Authentication <span class="nav-num">4</span></a>
+    <a href="#s5"  class="nav-link"><i class="fa-solid fa-plug"></i> Verify Connection <span class="nav-num">5</span></a>
+    <a href="#s6"  class="nav-link"><i class="fa-solid fa-folder-plus"></i> Directory Setup <span class="nav-num">6</span></a>
+    <a href="#s7"  class="nav-link"><i class="fa-solid fa-flask-vial"></i> Test Uploads <span class="nav-num">7</span></a>
+    <a href="#s8"  class="nav-link"><i class="fa-brands fa-php"></i> PHP Integration <span class="nav-num">8</span></a>
+    <a href="#s9"  class="nav-link"><i class="fa-solid fa-rotate"></i> File Overwrite Strategy <span class="nav-num">9</span></a>
+    <a href="#s10" class="nav-link"><i class="fa-solid fa-clock"></i> Cron Automation <span class="nav-num">10</span></a>
+    <a href="#s11" class="nav-link"><i class="fa-solid fa-magnifying-glass"></i> Monitoring <span class="nav-num">11</span></a>
+    <a href="#s12" class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Troubleshooting <span class="nav-num">12</span></a>
+    <a href="#s13" class="nav-link"><i class="fa-solid fa-list-check"></i> Setup Checklist <span class="nav-num">13</span></a>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════ MAIN -->
+<main>
+
+  <!-- ─────────────────────── 1. OVERVIEW -->
+  <section class="section" id="s1">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-circle-info"></i></div>
+      <div class="section-title-wrap">
+        <h2>Overview</h2>
+        <p>Why rclone + MEGA for database backups</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">MEGA is a zero-knowledge cloud storage provider offering 20GB free to anyone. Unlike GitHub's file size limits or complex REST APIs, MEGA provides end-to-end encryption, large file support, and unlimited bandwidth. <strong>rclone</strong> is a command-line tool that abstracts the MEGA API, making it simple to upload, sync, and manage files from any server.</p>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Why This Approach Works</h3>
+    
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon"><i class="fa-solid fa-lock" style="color: var(--green);"></i></div>
+        <h4>End-to-End Encryption</h4>
+        <p>Your backups are encrypted on your machine before transmission. MEGA cannot decrypt them.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><i class="fa-solid fa-file-zipper" style="color: var(--orange);"></i></div>
+        <h4>Large File Support</h4>
+        <p>Upload SQL dumps up to 400MB+ on the free plan. No GitHub file size restrictions.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><i class="fa-solid fa-boltutton" style="color: var(--accent);"></i></div>
+        <h4>Simple CLI Integration</h4>
+        <p>rclone provides a straightforward command-line interface for integration into PHP and cron jobs.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon"><i class="fa-solid fa-circle-check" style="color: var(--green);"></i></div>
+        <h4>Battle-Tested</h4>
+        <p>rclone is actively maintained, widely adopted, and proven reliable for production backups.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>MEGA's Business Model:</strong> MEGA makes money from premium accounts ($5–20/month). The 20GB free tier is sustainable long-term. Your backups are yours alone — MEGA's "zero-knowledge" architecture means even MEGA employees cannot access them.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 2. PREREQUISITES -->
+  <section class="section" id="s2">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-list-check"></i></div>
+      <div class="section-title-wrap">
+        <h2>Prerequisites</h2>
+        <p>What you need before starting</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Before you begin, ensure you have the following:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Requirement</th>
+            <th>Details</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>MEGA Account</strong></td>
+            <td>Create a free account at <code>mega.io</code> (20GB free tier). Use a dedicated account for backups.</td>
+            <td><span class="badge-pill pill-blue">Required</span></td>
+          </tr>
+          <tr>
+            <td><strong>VPS Access</strong></td>
+            <td>Root or sudo access to your VPS. CentOS 8+, RHEL 8+, or AlmaLinux.</td>
+            <td><span class="badge-pill pill-blue">Required</span></td>
+          </tr>
+          <tr>
+            <td><strong>PHP 7.4+</strong></td>
+            <td>Already installed on web hosting. Backup script uses shell_exec() which must be enabled.</td>
+            <td><span class="badge-pill pill-blue">Required</span></td>
+          </tr>
+          <tr>
+            <td><strong>MySQL/MariaDB</strong></td>
+            <td>Running locally on the VPS. We'll dump databases using the Spatie DbDumper PHP package.</td>
+            <td><span class="badge-pill pill-blue">Required</span></td>
+          </tr>
+          <tr>
+            <td><strong>Internet Connectivity</strong></td>
+            <td>The VPS must reach MEGA's servers (https://mega.io) to upload files.</td>
+            <td><span class="badge-pill pill-blue">Required</span></td>
+          </tr>
+          <tr>
+            <td><strong>SSH Access</strong></td>
+            <td>Ability to SSH into the VPS and execute commands. Port 22 or custom SSH port.</td>
+            <td><span class="badge-pill pill-blue">Required</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Check PHP Configuration:</strong> Some hosting providers disable <code>shell_exec()</code> for security. Test with: <code>php -i | grep disable_functions</code>. If <code>exec</code> or <code>shell_exec</code> appears, ask your host to enable them or disable SELinux/AppArmor restrictions.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 3. INSTALLING RCLONE -->
+  <section class="section" id="s3">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-download"></i></div>
+      <div class="section-title-wrap">
+        <h2>Installing rclone</h2>
+        <p>Deploy rclone on your VPS</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">rclone provides an official installation script that auto-detects your OS and installs the latest version.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>SSH into Your VPS</h4>
+          <p>Connect as root or a sudo-capable user.</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">root@your-vps-ip</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Run the Official Installation Script</h4>
+          <p>This script downloads, verifies, and installs rclone automatically:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">curl</span> https://rclone.org/install.sh | <span class="cmd">sudo bash</span></pre>
+          </div>
+          <p style="margin-top:8px; color:var(--muted); font-size:13px;">This will download the latest rclone binary (currently v1.74.3) and install it to <code>/usr/bin/rclone</code>.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Verify Installation</h4>
+          <p>Check that rclone is installed and accessible:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="arg">version</span>
+<span class="ok">rclone v1.74.3
+- os/version: almalinux 8.10 (64 bit)
+- os/kernel: 4.18.0-553.el8_10.x86_64 (x86_64)
+- go/version: go1.26.4</span></pre>
+          </div>
+          <p style="margin-top:8px; color: var(--green); font-size:13px;"><strong>✓ Installation successful!</strong> You now have rclone ready for configuration.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Installation Location:</strong> rclone is installed to <code>/usr/bin/rclone</code>. When calling rclone from PHP via <code>shell_exec()</code>, always use the full path: <code>/usr/bin/rclone</code> rather than just <code>rclone</code>. This ensures the command is found regardless of the PHP process's PATH environment variable.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 4. MEGA AUTHENTICATION -->
+  <section class="section" id="s4">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-key"></i></div>
+      <div class="section-title-wrap">
+        <h2>MEGA Authentication</h2>
+        <p>Configure rclone to access your MEGA account</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">rclone stores MEGA credentials locally in an encrypted configuration file. The interactive setup guides you through account linking.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Launch rclone Config Wizard</h4>
+          <p>Start the interactive configuration process:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="arg">config</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Create a New Remote</h4>
+          <p>When prompted, type <code>n</code> to create a new remote:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="out">No remotes found, make a new one?
+n) New remote
+s) Set configuration password
+q) Quit config
+n/s/q></span> <span class="cmd">n</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Name Your Remote</h4>
+          <p>Name the remote <code>mega</code> (this is what you'll reference in commands):</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="out">Enter name for new remote.
+name></span> <span class="cmd">mega</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Select MEGA Storage Type</h4>
+          <p>From the storage type list, select <code>39</code> for MEGA:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="out">...
+39 / Mega
+   \ (mega)
+...
+Storage></span> <span class="cmd">39</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Enter Your MEGA Credentials</h4>
+          <p>Input your MEGA account email and password:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="out">Option user.
+User name.
+Enter a value.
+user></span> <span class="cmd">your-mega-email@example.com</span>
+
+<span class="out">Option pass.
+Password.
+Choose an alternative below.
+y) Yes, type in my own password
+g) Generate random password
+y/g></span> <span class="cmd">y</span>
+
+<span class="out">Enter the password:</span>
+<span class="hi">password:</span> <span class="comment">(type your MEGA password — not visible)</span></pre>
+          </div>
+          <p style="margin-top:8px; color:var(--muted); font-size:13px;"><strong>Clarification:</strong> if rclone asks for the password twice, it is usually asking you to confirm your existing MEGA account password because the input is hidden. It is not creating a new MEGA password or a separate MEGA account.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <h4>Optional: 2FA Configuration</h4>
+          <p>If your MEGA account has 2-factor authentication, enter your 2FA code. Otherwise, press Enter to skip:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="out">Option 2fa.
+The 2FA code of your MEGA account if the account is set up with one
+Enter a value. Press Enter to leave empty.
+2fa></span> <span class="comment">(press Enter if not using 2FA)</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <h4>Skip Advanced Settings</h4>
+          <p>Type <code>n</code> to skip advanced configuration (defaults work fine):</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="out">Edit advanced config?
+y) Yes
+n) No (default)
+y/n></span> <span class="cmd">n</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">8</div>
+        <div class="step-body">
+          <h4>Confirm and Save</h4>
+          <p>Review the configuration summary and type <code>y</code> to save:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="out">Configuration complete.
+Options:
+- type: mega
+- user: your-mega-email@example.com
+- pass: *** ENCRYPTED ***
+Keep this "mega" remote?
+y) Yes this is OK (default)
+e) Edit this remote
+d) Delete this remote
+y/e/d></span> <span class="cmd">y</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">9</div>
+        <div class="step-body">
+          <h4>Exit Config</h4>
+          <p>Type <code>q</code> to quit the config wizard:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="out">Current remotes:
+
+Name                 Type
+====                 ====
+mega                 mega
+
+e) Edit existing remote
+n) New remote
+d) Delete remote
+r) Rename remote
+c) Copy remote
+s) Set configuration password
+q) Quit config
+e/n/d/r/c/s/q></span> <span class="cmd">q</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Where is the config stored?</strong> rclone saves your encrypted credentials to <code>~/.config/rclone/rclone.conf</code>. For root user, this is <code>/root/.config/rclone/rclone.conf</code>. If you run rclone from a cron job as root, this file must be accessible in the root home directory.</div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>MEGA Account Considerations:</strong> We recommend using a dedicated MEGA account for backups (separate from personal data). This keeps your backup storage isolated and makes it easier to audit access. If your personal MEGA account is compromised, your backups remain protected.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 5. VERIFY CONNECTION -->
+  <section class="section" id="s5">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-plug"></i></div>
+      <div class="section-title-wrap">
+        <h2>Verify Connection</h2>
+        <p>Test that rclone can reach MEGA</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Before proceeding with backups, verify your MEGA connection works and see what's currently in your account.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>List Your MEGA Files</h4>
+          <p>See all files and folders in your MEGA account:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="arg">ls mega:</span>
+<span class="comment"># If your account is empty, output will be blank (normal for first-time setup)</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>List Directories Only</h4>
+          <p>For a faster check, list only directories (not all files):</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="arg">lsd mega:</span>
+<span class="comment"># Output: (empty for new account)</span></pre>
+          </div>
+          <p style="margin-top:8px; color: var(--green); font-size:13px;"><strong>✓ If this command succeeds with no output, your MEGA connection is working!</strong> Your account is empty, which is expected for a fresh setup.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Connection Failed? Debug with Verbose Output</h4>
+          <p>If the above commands hang or return errors, get detailed debug information:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="flag">-vv</span> <span class="arg">ls mega:</span> <span class="flag">2>&1</span> | <span class="cmd">head</span> <span class="flag">-50</span></pre>
+          </div>
+          <p style="margin-top:8px; color:var(--muted); font-size:13px;">The <code>-vv</code> flag enables verbose logging. Look for lines containing "ERROR" or "timeout" to diagnose connection issues.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>First Connection May Be Slow:</strong> On the first connection to MEGA, rclone performs an initial authentication handshake. This can take 10–30 seconds. The command may appear to hang. Be patient — this is normal. Subsequent connections are much faster as rclone caches the session.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 6. DIRECTORY SETUP -->
+  <section class="section" id="s6">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-folder-plus"></i></div>
+      <div class="section-title-wrap">
+        <h2>Directory Setup</h2>
+        <p>Organize your MEGA backups with proper folder structure</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Create a <code>backups</code> folder in your MEGA account to store all database backups in one organized location.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Create the Backups Folder</h4>
+          <p>Create a top-level folder named <code>backups</code> in MEGA:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="arg">mkdir mega:backups</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Verify Folder Creation</h4>
+          <p>List directories in MEGA to confirm:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="arg">lsd mega:</span>
+<span class="ok">          -1 2026-06-12 12:07:36        -1 backups</span></pre>
+          </div>
+          <p style="margin-top:8px; color: var(--green); font-size:13px;"><strong>✓ Folder created successfully!</strong> Your backup storage is now organized.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Optional: Nested Organization:</strong> For large deployments with many databases, you can create sub-folders: <code>rclone mkdir mega:backups/production</code>, <code>rclone mkdir mega:backups/staging</code>, etc. In this guide, we use a flat <code>mega:backups/</code> structure for simplicity.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 7. TEST UPLOADS -->
+  <section class="section" id="s7">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-flask-vial"></i></div>
+      <div class="section-title-wrap">
+        <h2>Test Uploads</h2>
+        <p>Verify file uploads work correctly</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Before running the production backup script, test that rclone can upload files to MEGA successfully.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Create a Test File</h4>
+          <p>Create a small test file locally:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">echo</span> <span class="arg">"test backup content"</span> > test.sql.gz</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Upload to MEGA</h4>
+          <p>Copy the test file to the backups folder:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="arg">copy test.sql.gz mega:backups/test.sql.gz</span></pre>
+          </div>
+          <p style="margin-top:8px; color:var(--muted); font-size:13px;">This command uploads <code>test.sql.gz</code> to <code>mega:backups/</code>.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Verify Upload</h4>
+          <p>List files in the MEGA backups folder to confirm the upload:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rclone</span> <span class="arg">ls mega:backups/</span>
+<span class="ok">       19 test.sql.gz</span></pre>
+          </div>
+          <p style="margin-top:8px; color: var(--green); font-size:13px;"><strong>✓ Upload successful!</strong> Your 19-byte test file is now in MEGA.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Clean Up</h4>
+          <p>Delete the test files (both local and remote):</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">rm</span> <span class="arg">test.sql.gz</span>
+<span class="cmd">rclone</span> <span class="arg">delete mega:backups/test.sql.gz</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Speed Estimation:</strong> A 100MB SQL dump typically uploads in 30–60 seconds depending on your network speed. MEGA supports parallel uploads, so rclone can be faster with multiple files. On slow VPS connections (1Mbps upload), expect 1–5 minutes per 100MB file.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 8. PHP INTEGRATION -->
+  <section class="section" id="s8">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-brands fa-php"></i></div>
+      <div class="section-title-wrap">
+        <h2>PHP Integration</h2>
+        <p>Call rclone from your PHP backup script</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">The PHP backup script uses <code>shell_exec()</code> to invoke rclone commands. Here's how to integrate rclone into your database backup workflow.</p>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">PHP Configuration Constants</h3>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="lang"><i class="fa-brands fa-php"></i> php</span>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment">// At the top of your backup script (e.g., cron_backup_all.php)</span>
+<span class="cmd">const</span> <span class="arg">RCLONE_REMOTE</span> = <span class="arg">'mega'</span>;          <span class="comment">// Name of your rclone remote</span>
+<span class="cmd">const</span> <span class="arg">RCLONE_BACKUP_DIR</span> = <span class="arg">'backups'</span>;    <span class="comment">// Folder in MEGA</span>
+<span class="cmd">define</span>(<span class="arg">'SQL_DIR'</span>, <span class="cmd">__DIR__</span> . <span class="arg">'/sql_files'</span>); <span class="comment">// Absolute path for temporary folder</span></pre>
+    </div>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Core Upload Function</h3>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="lang"><i class="fa-brands fa-php"></i> php</span>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment">// Inside your backup loop, after compressing the SQL file:</span>
+
+<span class="comment">// Build the rclone remote path</span>
+<span class="arg">$remotePath</span> = <span class="arg">RCLONE_REMOTE</span> . <span class="arg">':'</span> . <span class="arg">RCLONE_BACKUP_DIR</span> . <span class="arg">'/'</span> . <span class="arg">basename</span>(<span class="arg">$gzFilename</span>);
+
+<span class="comment">// Explicitly set the config file path (CRITICAL for web/cron execution)</span>
+<span class="arg">$rcloneConfig</span> = <span class="cmd">__DIR__</span> . <span class="arg">'/rclone.conf'</span>;
+
+<span class="comment">// Use full path to rclone and pass the config flag</span>
+<span class="arg">$command</span> = <span class="arg">"/usr/bin/rclone --config "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$rcloneConfig</span>) . <span class="arg">" copy "</span> . 
+            <span class="arg">escapeshellarg</span>(<span class="arg">$gzFilename</span>) . <span class="arg">" "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$remotePath</span>) . <span class="arg">" 2>&1"</span>;
+
+<span class="comment">// Execute the command and capture output and exit code</span>
+<span class="cmd">exec</span>(<span class="arg">$command</span>, <span class="arg">$outputArray</span>, <span class="arg">$exitCode</span>);
+<span class="arg">$output</span> = <span class="arg">implode</span>(<span class="arg">"\n"</span>, <span class="arg">$outputArray</span>);
+
+<span class="comment">// Check for errors using the exit code (0 means success)</span>
+<span class="cmd">if</span> (<span class="arg">$exitCode</span> === <span class="arg">0</span>) {
+    <span class="cmd">echo</span> <span class="arg">"Backup for $name uploaded to MEGA successfully.\n"</span>;
+} <span class="cmd">else</span> {
+    <span class="cmd">echo</span> <span class="arg">"Error uploading $name (Exit Code $exitCode): "</span> . <span class="arg">$output</span> . <span class="arg">"\n"</span>;
+}</pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>Critical: Use Full Path to rclone</strong><br>Always use <code>/usr/bin/rclone</code> in your PHP code, not just <code>rclone</code>. When PHP's <code>shell_exec()</code> runs as the www-data or apache user, the PATH environment may not include where rclone is installed. Using the full path ensures the command is always found.</div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>escapeshellarg() is Essential:</strong> The <code>escapeshellarg()</code> function prevents shell injection attacks. Always wrap user-controlled paths and filenames with it before passing to <code>shell_exec()</code>.</div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Why capture stderr (2>&1)?</strong> The <code>2>&1</code> at the end of the command redirects stderr to stdout. This ensures error messages are captured in <code>$output</code>, making debugging easier.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 9. FILE OVERWRITE STRATEGY -->
+  <section class="section" id="s9">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-rotate"></i></div>
+      <div class="section-title-wrap">
+        <h2>File Overwrite Strategy</h2>
+        <p>Keep storage costs minimal with smart overwrites</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">On a 20GB free MEGA plan, you must manage storage carefully. By default, <code>rclone copy</code> skips files that already exist. To keep backups fresh and storage optimal, use the <code>--force</code> flag to overwrite old backups with new ones.</p>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Two Strategies</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Strategy</th>
+            <th>Command</th>
+            <th>Storage Usage</th>
+            <th>Use Case</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Always Overwrite (Recommended)</strong></td>
+            <td><code>rclone copy --force</code></td>
+            <td>Stays constant at 1 backup per DB</td>
+            <td>Limited free tier (20GB)</td>
+          </tr>
+          <tr>
+            <td><strong>Keep All Versions</strong></td>
+            <td><code>rclone copy</code> (without --force)</td>
+            <td>Grows indefinitely</td>
+            <td>When you need backup history</td>
+          </tr>
+          <tr>
+            <td><strong>Versioned (Date-Based)</strong></td>
+            <td>Rename files with timestamp</td>
+            <td>Grows by 1 backup per day per DB</td>
+            <td>Balance: keep recent history</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Implementation: The --force Flag</h3>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Modify your PHP upload command to include <code>--force</code>:</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="lang"><i class="fa-brands fa-php"></i> php</span>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="arg">$command</span> = <span class="arg">"/usr/bin/rclone --config "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$rcloneConfig</span>) . <span class="arg">" copy --force "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$gzFilename</span>) . 
+            <span class="arg">" "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$remotePath</span>) . <span class="arg">" 2>&1"</span>;</pre>
+    </div>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Behavior Comparison</h3>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;"><strong>Without --force (default):</strong></p>
+    <ul style="margin: 0 0 16px 20px; color: var(--muted);">
+      <li>Day 1: Upload <code>century_backups_.sql.gz</code> (100MB) → MEGA has 100MB</li>
+      <li>Day 2: Try to upload <code>century_backups_.sql.gz</code> → File exists, skipped. MEGA still has 100MB (old version)</li>
+      <li>Day 3+: Continue skipping. Old backup is stale!</li>
+    </ul>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;"><strong>With --force:</strong></p>
+    <ul style="margin: 0 0 16px 20px; color: var(--muted);">
+      <li>Day 1: Upload <code>century_backups_.sql.gz</code> (100MB) → MEGA has 100MB</li>
+      <li>Day 2: Upload <code>century_backups_.sql.gz</code> (105MB, newer) → MEGA overwrites, now has 105MB (latest version)</li>
+      <li>Day 3+: Always have the most recent backup, storage stays ~constant</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Recommended Setting:</strong> Use <code>--force</code> for free tier users. Your 20GB storage always holds the current backups, and you're never limited by accumulated old versions.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 10. CRON AUTOMATION -->
+  <section class="section" id="s10">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-clock"></i></div>
+      <div class="section-title-wrap">
+        <h2>Cron Automation</h2>
+        <p>Schedule backups to run automatically</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Once your backup script is tested and working, set up a cron job to run it automatically on a schedule (e.g., daily at 2 AM).</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Open the Crontab Editor</h4>
+          <p>Edit the cron schedule for the root user (who can access all databases):</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">crontab</span> <span class="flag">-e</span></pre>
+          </div>
+          <p style="margin-top:8px; color:var(--muted); font-size:13px;">This opens your default text editor (usually vi or nano). If you see an error like "no crontab," that's fine — cron will create one.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Add the Cron Job</h4>
+          <p>Insert this line at the end of the file (adjust path to your script):</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="comment"># Run database backups daily at 2:00 AM</span>
+<span class="cmd">0 2 * * *</span> <span class="arg">cd /home/appuser/public_html/backup_services && /usr/bin/php cron_backup_all.php >> backup.log 2>&1</span></pre>
+          </div>
+          <p style="margin-top:8px; color:var(--muted); font-size:13px;">Breaking this down:</p>
+          <ul style="margin: 8px 0 0 20px; color: var(--muted); font-size: 13px;">
+            <li><code>0 2 * * *</code> = Every day at 02:00 (2 AM) Africa/Lagos timezone</li>
+            <li><code>cd .../backup_services</code> = Navigate to the script directory</li>
+            <li><code>/usr/bin/php cron_backup_all.php</code> = Run the backup script with full PHP path</li>
+            <li><code>>> backup.log 2>&1</code> = Append all output (stdout and stderr) to backup.log</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Save and Exit</h4>
+          <p>Save the file:</p>
+          <ul style="margin: 8px 0 16px 20px; color: var(--muted); font-size: 13px;">
+            <li><strong>In nano:</strong> Press <code>Ctrl+O</code>, press Enter, then <code>Ctrl+X</code></li>
+            <li><strong>In vi/vim:</strong> Type <code>:wq</code> and press Enter</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Verify the Cron Job</h4>
+          <p>List your active cron jobs to confirm it was added:</p>
+          <div class="code-block">
+            <div class="code-bar">
+              <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">crontab</span> <span class="flag">-l</span>
+<span class="ok">0 2 * * * cd /home/appuser/public_html/backup_services && /usr/bin/php cron_backup_all.php >> backup.log 2>&1</span></pre>
+          </div>
+          <p style="margin-top:8px; color: var(--green); font-size:13px;"><strong>✓ Cron job successfully scheduled!</strong> Your backups will now run automatically daily.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Common Cron Schedules</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cron Expression</th>
+            <th>Frequency</th>
+            <th>Use Case</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>0 2 * * *</code></td>
+            <td>Every day at 2 AM</td>
+            <td>Default — low server impact, minimal storage growth</td>
+          </tr>
+          <tr>
+            <td><code>0 */6 * * *</code></td>
+            <td>Every 6 hours (2 AM, 8 AM, 2 PM, 8 PM)</td>
+            <td>Frequent backups for critical data</td>
+          </tr>
+          <tr>
+            <td><code>0 0 * * 0</code></td>
+            <td>Every Sunday at midnight</td>
+            <td>Weekly backups (less frequent, more storage in MEGA)</td>
+          </tr>
+          <tr>
+            <td><code>30 1 * * *</code></td>
+            <td>Every day at 1:30 AM</td>
+            <td>Offset from "2 AM" for load distribution</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Cron Timezone:</strong> By default, cron uses the server's system timezone. Your backups are configured to run at Africa/Lagos time. To verify the server timezone, run: <code>timedatectl show --property=Timezone --value</code></div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Output Logging:</strong> The <code>>> backup.log 2>&1</code> redirect is critical. Without it, cron emails you output on every run, which can spam your mailbox. Always redirect cron output to a log file.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 11. MONITORING -->
+  <section class="section" id="s11">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-magnifying-glass"></i></div>
+      <div class="section-title-wrap">
+        <h2>Monitoring & Logs</h2>
+        <p>Track backup runs and diagnose issues</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Monitor your automated backups to ensure they're running successfully and storage is being used efficiently.</p>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">View Backup Log</h3>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># View the last 50 lines of the backup log</span>
+<span class="cmd">tail</span> <span class="flag">-50</span> <span class="arg">backup.log</span>
+
+<span class="comment"># Watch the log in real-time (press Ctrl+C to exit)</span>
+<span class="cmd">tail</span> <span class="flag">-f</span> <span class="arg">backup.log</span>
+
+<span class="comment"># Count how many backups have succeeded</span>
+<span class="cmd">grep</span> <span class="flag">-c</span> <span class="arg">"uploaded to MEGA successfully"</span> <span class="arg">backup.log</span></pre>
+    </div>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Check MEGA Storage Usage</h3>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># List all files in your backups folder with file sizes</span>
+<span class="cmd">rclone</span> <span class="arg">ls mega:backups/</span>
+
+<span class="comment"># Get a summary of total size used</span>
+<span class="cmd">rclone</span> <span class="arg">du mega:backups/</span>
+
+<span class="comment"># Example output:</span>
+<span class="out">       104857600 century_backups_.sql.gz
+        52428800 olamper_eti_osa_backups_.sql.gz
+        89128450 fav_alagabdo_backups_.sql.gz
+        ...
+Total: 1234567890 bytes (1.15 GB)</span></pre>
+    </div>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Expected Log Output (Successful Run)</h3>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="lang"><i class="fa-solid fa-terminal"></i> text</span>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="ok">Database century dumped successfully.
+SQL file compressed for century.
+Compressed backup for century uploaded to MEGA successfully.
+Temporary files for century deleted.
+Database olamper_eti_osa dumped successfully.
+SQL file compressed for olamper_eti_osa.
+Compressed backup for olamper_eti_osa uploaded to MEGA successfully.
+Temporary files for olamper_eti_osa deleted.
+... (more databases)
+Database nasbebag dumped successfully.
+SQL file compressed for nasbebag.
+Compressed backup for nasbebag uploaded to MEGA successfully.
+Temporary files for nasbebag deleted.</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Log Rotation:</strong> Over time, <code>backup.log</code> will grow large. Consider using <code>logrotate</code> to archive old logs: <code>echo "/home/appuser/public_html/backup_services/backup.log { daily rotate 7 compress }" | sudo tee /etc/logrotate.d/backups</code></div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 12. TROUBLESHOOTING -->
+  <section class="section" id="s12">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="section-title-wrap">
+        <h2>Troubleshooting</h2>
+        <p>Diagnose and fix common issues</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Problem</th>
+            <th>Cause</th>
+            <th>Solution</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>"rclone: command not found"</strong></td>
+            <td>rclone is not in the system PATH or not installed</td>
+            <td>Use full path: <code>/usr/bin/rclone</code>. Verify: <code>which rclone</code></td>
+          </tr>
+          <tr>
+            <td><strong>Script says "Success" in Web/Cron but files aren't in MEGA</strong></td>
+            <td>Web/Cron user (e.g., www-data) cannot read root's <code>rclone.conf</code> and fails silently.</td>
+            <td>Copy <code>/root/.config/rclone/rclone.conf</code> to your project folder, run <code>chmod 644 rclone.conf</code>, and use the <code>--config</code> flag in PHP (see Section 8).</td>
+          </tr>
+          <tr>
+            <td><strong>"Permission denied" on SQL dump in Web/Cron</strong></td>
+            <td>Script is executing in a different working directory (e.g., <code>/</code>) and relative paths fail.</td>
+            <td>Always use absolute paths with <code>__DIR__</code> (e.g., <code>__DIR__ . '/sql_files'</code>) in your PHP script.</td>
+          </tr>
+          <tr>
+            <td><strong>"Permission denied" on SQL dump</strong></td>
+            <td>MySQL user cannot write to sql_files/ directory</td>
+            <td>Ensure directory exists with correct permissions: <code>mkdir -p sql_files && chmod 755 sql_files</code></td>
+          </tr>
+          <tr>
+            <td><strong>Upload hangs or times out</strong></td>
+            <td>Slow network or very large file (100MB+)</td>
+            <td>Check network: <code>ping mega.nz</code>. Test with smaller file first. Increase PHP timeout: <code>set_time_limit(0)</code></td>
+          </tr>
+          <tr>
+            <td><strong>"Access Denied" when listing MEGA</strong></td>
+            <td>MEGA credentials are wrong or account is locked</td>
+            <td>Reconfigure: <code>rclone config</code> and re-enter email/password. Check for MEGA account warnings</td>
+          </tr>
+          <tr>
+            <td><strong>Cron job not running</strong></td>
+            <td>Cron syntax error or service not enabled</td>
+            <td>Verify syntax: <code>crontab -l</code>. Check cron is running: <code>systemctl status crond</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="font-size:16px; margin: 20px 0 12px;">Debug rclone Connection</h3>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <span class="lang"><i class="fa-solid fa-terminal"></i> bash</span>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># Enable verbose logging for rclone</span>
+<span class="cmd">rclone</span> <span class="flag">-vv</span> <span class="arg">ls mega:</span> <span class="flag">2>&1</span> | <span class="cmd">head</span> <span class="flag">-100</span>
+
+<span class="comment"># Look for lines containing "ERROR" or "timeout"</span>
+<span class="cmd">grep</span> <span class="arg">ERROR</span> <span class="comment"># will show authentication or connection issues</span></pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>PHP shell_exec() Disabled:</strong> Some hosting providers disable <code>shell_exec()</code> or <code>exec()</code> for security. Test with: <code>php -r "echo shell_exec('whoami');"</code>. If it returns nothing or an error, contact your host to enable it, or switch to a provider that allows shell command execution.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 13. SETUP CHECKLIST -->
+  <section class="section" id="s13">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-list-check"></i></div>
+      <div class="section-title-wrap">
+        <h2>Setup Checklist</h2>
+        <p>Verify all components are in place</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Use this checklist to ensure your MEGA backup system is fully deployed and ready for production.</p>
+
+    <div class="checklist">
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>MEGA Account Created</strong> — Free 20GB tier registered at mega.io</span>
+        <span class="step-label">Step 1</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>rclone Installed</strong> — <code>/usr/bin/rclone</code> available and verified</span>
+        <span class="step-label">Step 3</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>rclone Configured</strong> — <code>rclone config</code> completed with MEGA credentials</span>
+        <span class="step-label">Step 4</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Connection Verified</strong> — <code>rclone lsd mega:</code> runs without errors</span>
+        <span class="step-label">Step 5</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Backups Folder Created</strong> — <code>mega:backups/</code> exists in MEGA</span>
+        <span class="step-label">Step 6</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Test Upload Successful</strong> — File uploaded and retrieved from MEGA</span>
+        <span class="step-label">Step 7</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>PHP Script Updated</strong> — <code>cron_backup_all.php</code> includes rclone integration with full path</span>
+        <span class="step-label">Step 8</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>File Overwrite Strategy Set</strong> — Using <code>--force</code> flag to manage storage</span>
+        <span class="step-label">Step 9</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Cron Job Scheduled</strong> — <code>crontab -l</code> shows backup command</span>
+        <span class="step-label">Step 10</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Manual Test Run Passed</strong> — <code>php cron_backup_all.php</code> executed without errors</span>
+        <span class="step-label">Step 8</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Log Monitoring Enabled</strong> — <code>tail -f backup.log</code> shows recent runs</span>
+        <span class="step-label">Step 11</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>MEGA Storage Verified</strong> — <code>rclone ls mega:backups/</code> shows uploaded backups</span>
+        <span class="step-label">Step 11</span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Backup History Tested</strong> — Run backup twice to verify overwrite behavior works</span>
+        <span class="step-label">Step 9</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="text-align: center; color: var(--green); font-size: 16px; font-weight: 600; margin-top: 32px;">
+      <i class="fa-solid fa-circle-check" style="margin-right: 8px;"></i>
+      All systems operational! Your backups are now automated and secure.
+    </p>
+  </section>
+
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════ FOOTER -->
+<footer>
+  <p>MEGA S4 Cloud Storage Setup with rclone &nbsp;·&nbsp; <span>vps01.example.net</span> &nbsp;·&nbsp; Deployment Guide &nbsp;·&nbsp; June 2026</p>
+  <p style="margin-top:6px; font-size:11px;">Database backup automation using rclone, PHP integration, and automated scheduling — Tested and verified in production</p>
+</footer>
+
+<script src="../assets/private-values-loader.js" data-secret-src="../secrets/private-values.json"></script>
+<script src="../assets/theme-toggle.js"></script>
+</body>
+</html>

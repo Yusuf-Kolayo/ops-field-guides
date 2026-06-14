@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Server Administration Guides</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --muted: #8b949e;
+      --accent: #4f8ef7;
+      --accent2: #7c5cfc;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, rgba(79,142,247,.1) 0%, rgba(124,92,252,.1) 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 60px 24px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2.8em;
+      font-weight: 700;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--muted);
+      max-width: 680px;
+      margin: 0 auto;
+      font-size: 16px;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 48px auto;
+      padding: 0 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+
+    .card-icon {
+      font-size: 32px;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .card h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+
+    .card p {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 20px;
+      flex-grow: 1;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+
+    .card-meta i {
+      color: var(--accent);
+    }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 48px;
+    }
+  </style>
+  <link rel="stylesheet" href="./assets/theme.css" />
+  <script src="./assets/theme-init.js"></script>
+</head>
+<body>
+
+  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme"></button>
+
+<header>
+  <h1>Server Administration Guides</h1>
+  <p>A comprehensive collection of practical, hands-on field guides covering remote server management, performance diagnostics, security hardening, incident response, and backup automation.</p>
+</header>
+
+<main>
+  <div class="grid">
+    <!-- Guide 01 -->
+    <a href="pages/remote-server-management.html" class="card">
+      <div class="card-icon"><i class="fa-solid fa-terminal"></i></div>
+      <h2>Remote Server Management</h2>
+      <p>Practical reference covering real tasks performed on a VPS — from user management to basic system operations.</p>
+      <div class="card-meta">
+        <i class="fa-solid fa-calendar"></i> March 2026
+      </div>
+    </a>
+
+    <!-- Guide 02 -->
+    <a href="pages/performance-investigation.html" class="card">
+      <div class="card-icon"><i class="fa-solid fa-stethoscope"></i></div>
+      <h2>Performance Investigation</h2>
+      <p>Step-by-step walkthrough of a live server slowness investigation covering cron auditing, RAM, and disk I/O analysis.</p>
+      <div class="card-meta">
+        <i class="fa-solid fa-calendar"></i> April 2026
+      </div>
+    </a>
+
+    <!-- Guide 03 -->
+    <a href="pages/server-security-hardening.html" class="card">
+      <div class="card-icon"><i class="fa-solid fa-shield-halved"></i></div>
+      <h2>Server Security Hardening</h2>
+      <p>Hardening a production VPS against brute-force attacks with custom SSH ports, iptables, SELinux, and fail2ban.</p>
+      <div class="card-meta">
+        <i class="fa-solid fa-calendar"></i> April 2026
+      </div>
+    </a>
+
+    <!-- Guide 04 -->
+    <a href="pages/cpanel-auth-bypass.html" class="card">
+      <div class="card-icon"><i class="fa-solid fa-bug"></i></div>
+      <h2>cPanel/WHM Auth Bypass</h2>
+      <p>Incident response guide for a critical zero-authentication bypass vulnerability (CVE-2026-41940).</p>
+      <div class="card-meta">
+        <i class="fa-solid fa-calendar"></i> April 2026
+      </div>
+    </a>
+
+    <!-- Guide 05 -->
+    <a href="pages/post-env-edit-commands.html" class="card">
+      <div class="card-icon"><i class="fa-solid fa-gear"></i></div>
+      <h2>Post-.env Edit Commands</h2>
+      <p>A practical guide for what to run after editing a Laravel .env file on a remote server so new values load correctly.</p>
+      <div class="card-meta">
+        <i class="fa-solid fa-calendar"></i> May 2026
+      </div>
+    </a>
+
+    <!-- Guide 06 -->
+    <a href="pages/mega-rclone-setup.html" class="card">
+      <div class="card-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+      <h2>MEGA S4 Cloud Storage Setup</h2>
+      <p>Configuring MEGA cloud storage with rclone for automated database backups on a CentOS VPS via PHP.</p>
+      <div class="card-meta">
+        <i class="fa-solid fa-calendar"></i> June 2026
+      </div>
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>&copy; 2026 Server Administration Documentation. All rights reserved.</p>
+</footer>
+
+<script src="./assets/private-values-loader.js" data-secret-src="./secrets/private-values.json"></script>
+<script src="./assets/theme-toggle.js"></script>
+</body>
+</html>

@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Linux Server Administration — Field Guide</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c27;
+      --card:      #1e2336;
+      --border:    #2a3050;
+      --accent:    #4f8ef7;
+      --accent2:   #7c5cfc;
+      --green:     #3dd68c;
+      --red:       #f56565;
+      --orange:    #f6ad55;
+      --yellow:    #f6e05e;
+      --text:      #e2e8f0;
+      --muted:     #7a869a;
+      --code-bg:   #12151f;
+      --radius:    12px;
+      --radius-sm: 7px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #141828 0%, #1a2040 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 56px 24px 48px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(79,142,247,.12);
+      border: 1px solid rgba(79,142,247,.3);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: clamp(26px, 5vw, 42px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      background: linear-gradient(135deg, #e2e8f0, #7c9ec8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 560px;
+      margin: 0 auto 28px;
+    }
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta-pill i { color: var(--accent); font-size: 11px; }
+
+    /* ── LAYOUT ─────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      max-width: 1180px;
+      margin: 0 auto;
+      gap: 0;
+    }
+
+    /* ── SIDEBAR ────────────────────────────────── */
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 32px 0 32px 24px;
+      border-right: 1px solid var(--border);
+    }
+    aside::-webkit-scrollbar { width: 4px; }
+    aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding-left: 4px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .15s;
+      margin-bottom: 2px;
+    }
+    .nav-link:hover, .nav-link.active {
+      background: rgba(79,142,247,.1);
+      color: var(--accent);
+    }
+    .nav-link i { width: 16px; text-align: center; font-size: 12px; }
+    .nav-num {
+      margin-left: auto;
+      background: var(--border);
+      color: var(--muted);
+      font-size: 10px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── MAIN ───────────────────────────────────── */
+    main {
+      padding: 40px 40px 80px;
+      min-width: 0;
+    }
+
+    /* ── SECTION ────────────────────────────────── */
+    .section {
+      margin-bottom: 64px;
+      scroll-margin-top: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+    .icon-blue   { background: rgba(79,142,247,.15); color: var(--accent); }
+    .icon-purple { background: rgba(124,92,252,.15); color: var(--accent2); }
+    .icon-green  { background: rgba(61,214,140,.15); color: var(--green); }
+    .icon-red    { background: rgba(245,101,101,.15); color: var(--red); }
+    .icon-orange { background: rgba(246,173,85,.15); color: var(--orange); }
+    .icon-yellow { background: rgba(246,224,94,.15); color: var(--yellow); }
+
+    .section-title-wrap h2 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      margin-bottom: 3px;
+    }
+    .section-title-wrap p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── STEP / CALLOUT ─────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 16px; }
+    .step {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .step-num {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: rgba(79,142,247,.15);
+      border: 1px solid rgba(79,142,247,.3);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .step-body p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+
+    /* ── CODE BLOCK ─────────────────────────────── */
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .code-bar .lang {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .code-bar .lang i { color: var(--accent); }
+    .code-bar .dots { display: flex; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+    pre {
+      padding: 16px 18px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      overflow-x: auto;
+      color: #c9d1e0;
+    }
+    pre .cmd  { color: #79c0ff; }
+    pre .flag { color: #d2a8ff; }
+    pre .arg  { color: #a8d8a8; }
+    pre .out  { color: var(--muted); }
+    pre .hi   { color: var(--red); font-weight: 600; }
+    pre .ok   { color: var(--green); }
+    pre .comment { color: #4a5568; font-style: italic; }
+
+    /* ── INFO CARDS ─────────────────────────────── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 16px 0; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .card-icon { font-size: 20px; margin-bottom: 10px; }
+    .card h4 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+    .card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── CALLOUTS ───────────────────────────────── */
+    .callout {
+      display: flex;
+      gap: 14px;
+      padding: 16px 18px;
+      border-radius: var(--radius-sm);
+      margin: 14px 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .callout i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+    .callout-tip    { background: rgba(61,214,140,.08);  border: 1px solid rgba(61,214,140,.2);  color: #a0f0cc; }
+    .callout-tip i  { color: var(--green); }
+    .callout-warn   { background: rgba(246,173,85,.08);  border: 1px solid rgba(246,173,85,.2);  color: #fbd38d; }
+    .callout-warn i { color: var(--orange); }
+    .callout-danger { background: rgba(245,101,101,.08); border: 1px solid rgba(245,101,101,.2); color: #fca5a5; }
+    .callout-danger i { color: var(--red); }
+    .callout-info   { background: rgba(79,142,247,.08);  border: 1px solid rgba(79,142,247,.2);  color: #93c5fd; }
+    .callout-info i { color: var(--accent); }
+
+    /* ── TABLE ──────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid rgba(42,48,80,.5);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge-pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .pill-red    { background: rgba(245,101,101,.15); color: #fca5a5; }
+    .pill-orange { background: rgba(246,173,85,.15);  color: #fbd38d; }
+    .pill-green  { background: rgba(61,214,140,.15);  color: #6ee7b7; }
+    .pill-blue   { background: rgba(79,142,247,.15);  color: #93c5fd; }
+
+    /* ── DIVIDER ────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+    /* ── INLINE CODE ────────────────────────────── */
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #93c5fd;
+    }
+
+    /* ── FOOTER ─────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 32px 24px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    footer span { color: var(--accent); }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { padding: 24px 18px 60px; }
+    }
+  </style>
+  <link rel="stylesheet" href="../assets/theme.css" />
+  <script src="../assets/theme-init.js"></script>
+</head>
+<body>
+
+  <a href="../index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Home</a>  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme"></button>
+
+<!-- ═══════════════════════════════════════════ HEADER -->
+<header>
+  <div class="badge"><i class="fa-solid fa-terminal"></i> Linux Server Administration</div>
+  <h1>Remote Server Management<br>Field Guide</h1>
+  <p>A practical, hands-on reference covering real tasks performed on a cPanel / CentOS VPS — from user management to crash diagnostics.</p>
+  <div class="meta-pills">
+    <span class="meta-pill"><i class="fa-brands fa-centos"></i> CentOS / RHEL</span>
+    <span class="meta-pill"><i class="fa-solid fa-globe"></i> cPanel Managed</span>
+    <span class="meta-pill"><i class="fa-solid fa-server"></i> vps01.example.net</span>
+    <span class="meta-pill"><i class="fa-solid fa-calendar"></i> March 2026</span>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- ═══════════════════════════════════════════ SIDEBAR -->
+<aside>
+  <div style="padding: 12px 0 20px 4px;">
+    <p class="sidebar-label">Contents</p>
+    <a href="#s1"  class="nav-link"><i class="fa-solid fa-key"></i> Root Password <span class="nav-num">1</span></a>
+    <a href="#s2"  class="nav-link"><i class="fa-solid fa-user-plus"></i> Creating Users <span class="nav-num">2</span></a>
+    <a href="#s3"  class="nav-link"><i class="fa-solid fa-shield-halved"></i> Sudo Access <span class="nav-num">3</span></a>
+    <a href="#s4"  class="nav-link"><i class="fa-solid fa-lock"></i> User Passwords <span class="nav-num">4</span></a>
+    <a href="#s5"  class="nav-link"><i class="fa-solid fa-right-to-bracket"></i> Switching Users <span class="nav-num">5</span></a>
+    <a href="#s6"  class="nav-link"><i class="fa-solid fa-network-wired"></i> SSH Login <span class="nav-num">6</span></a>
+    <a href="#s7"  class="nav-link"><i class="fa-solid fa-fingerprint"></i> Host Fingerprint <span class="nav-num">7</span></a>
+    <a href="#s8"  class="nav-link"><i class="fa-solid fa-file-lines"></i> Reading Logs <span class="nav-num">8</span></a>
+    <a href="#s9"  class="nav-link"><i class="fa-solid fa-fire-flame-curved"></i> Firewall Logs <span class="nav-num">9</span></a>
+    <a href="#s10" class="nav-link"><i class="fa-solid fa-magnifying-glass-chart"></i> Downtime Investigation <span class="nav-num">10</span></a>
+    <a href="#s11" class="nav-link"><i class="fa-solid fa-memory"></i> OOM Crashes <span class="nav-num">11</span></a>
+    <a href="#s12" class="nav-link"><i class="fa-solid fa-hard-drive"></i> Adding Swap <span class="nav-num">12</span></a>
+    <a href="#s13" class="nav-link"><i class="fa-solid fa-download"></i> Downloading Logs <span class="nav-num">13</span></a>
+    <a href="#s14" class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Crash Timeline <span class="nav-num">14</span></a>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════ MAIN -->
+<main>
+
+  <!-- ─────────────────────── 1. ROOT PASSWORD -->
+  <section class="section" id="s1">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-key"></i></div>
+      <div class="section-title-wrap">
+        <h2>Changing the Root Password</h2>
+        <p>The first and most fundamental server security task</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">When you're already logged in as <code>root</code>, changing your password is a single command. No old password required.</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="cmd">passwd</span>
+
+<span class="out"># Output:</span>
+<span class="ok">Changing password for user root.</span>
+New password:
+Retype new password:
+<span class="ok">passwd: all authentication tokens updated successfully.</span></pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Tip:</strong> Password input is invisible — no characters appear as you type. This is intentional and normal on all Linux systems.</div>
+    </div>
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Best practice:</strong> Use a strong password (12+ chars, mixed case, numbers, symbols) and store it in a password manager like 1Password or Bitwarden. Never reuse passwords across servers.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 2. CREATING USERS -->
+  <section class="section" id="s2">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-user-plus"></i></div>
+      <div class="section-title-wrap">
+        <h2>Creating a New User</h2>
+        <p>Important: behaviour differs between distros</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">On Debian/Ubuntu, <code>adduser</code> is interactive and prompts for a password. On <strong>CentOS/RHEL/AlmaLinux</strong>, it is just an alias for <code>useradd</code> — silent, no prompt.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:#f97316;"><i class="fa-brands fa-ubuntu"></i></div>
+        <h4>Debian / Ubuntu</h4>
+        <p><code>adduser adminuser</code> — interactive wizard, sets password, creates home directory automatically.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:#ef4444;"><i class="fa-brands fa-centos"></i></div>
+        <h4>CentOS / RHEL</h4>
+        <p><code>adduser adminuser</code> — silent. Creates user and home directory but <strong>does not set a password</strong>. You must run <code>passwd adminuser</code> separately.</p>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash — CentOS/RHEL</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># Step 1: create the user</span>
+<span class="cmd">adduser</span> <span class="arg">adminuser</span>
+
+<span class="comment"># Step 2: set their password (required on RHEL-based systems)</span>
+<span class="cmd">passwd</span> <span class="arg">adminuser</span>
+
+<span class="comment"># Step 3: verify the user exists</span>
+<span class="cmd">id</span> <span class="arg">adminuser</span>
+<span class="out">uid=1002(adminuser) gid=1002(adminuser) groups=1002(adminuser)</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>How it works:</strong> Linux stores user accounts in <code>/etc/passwd</code>, passwords (hashed) in <code>/etc/shadow</code>, and group memberships in <code>/etc/group</code>. You can inspect these files directly if needed.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 3. SUDO ACCESS -->
+  <section class="section" id="s3">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="section-title-wrap">
+        <h2>Granting Sudo Access</h2>
+        <p>The sudo group is named differently depending on the distro</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">The <code>sudo</code> group name is a common source of confusion when switching between Linux distributions.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Distribution</th>
+            <th>Sudo Group Name</th>
+            <th>Command</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><i class="fa-brands fa-ubuntu" style="color:#f97316; margin-right:6px;"></i>Debian / Ubuntu</td>
+            <td><code>sudo</code></td>
+            <td><code>usermod -aG sudo adminuser</code></td>
+          </tr>
+          <tr>
+            <td><i class="fa-brands fa-centos" style="color:#ef4444; margin-right:6px;"></i>CentOS / RHEL / AlmaLinux</td>
+            <td><code>wheel</code></td>
+            <td><code>usermod -aG wheel adminuser</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># Add adminuser to the wheel group (CentOS/RHEL)</span>
+<span class="cmd">usermod</span> <span class="flag">-aG</span> <span class="arg">wheel adminuser</span>
+
+<span class="comment"># Verify group membership</span>
+<span class="cmd">groups</span> <span class="arg">adminuser</span>
+<span class="ok">adminuser : adminuser wheel</span>   <span class="comment"># ✓ wheel confirms sudo access</span></pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Flag explained:</strong> In <code>usermod -aG</code>, the <code>-a</code> means <em>append</em> (don't remove existing groups) and <code>-G</code> specifies supplementary groups. Omitting <code>-a</code> would replace all existing groups — a common mistake.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 4. USER PASSWORDS -->
+  <section class="section" id="s4">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-lock"></i></div>
+      <div class="section-title-wrap">
+        <h2>Setting User Passwords</h2>
+        <p>Managing credentials for system accounts</p>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># As root — set password for any user</span>
+<span class="cmd">passwd</span> <span class="arg">adminuser</span>
+
+<span class="out">Changing password for user adminuser.
+New password:
+Retype new password:</span>
+<span class="ok">passwd: all authentication tokens updated successfully.</span></pre>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:var(--green);"><i class="fa-solid fa-rotate"></i></div>
+        <h4>Force Password Change on Login</h4>
+        <p>Use <code>chage -d 0 adminuser</code> to force the user to change their password on their next login.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--red);"><i class="fa-solid fa-ban"></i></div>
+        <h4>Lock / Unlock an Account</h4>
+        <p>Lock: <code>passwd -l adminuser</code><br>Unlock: <code>passwd -u adminuser</code></p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--accent);"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <h4>Password Expiry Info</h4>
+        <p>View password aging details with <code>chage -l adminuser</code></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 5. SWITCHING USERS -->
+  <section class="section" id="s5">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-right-to-bracket"></i></div>
+      <div class="section-title-wrap">
+        <h2>Switching Between Users</h2>
+        <p>Navigating user contexts in an active terminal session</p>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># Switch to adminuser with a full login shell</span>
+<span class="cmd">su</span> <span class="flag">-</span> <span class="arg">adminuser</span>
+
+<span class="comment"># Confirm you're now adminuser</span>
+<span class="cmd">whoami</span>
+<span class="ok">adminuser</span>
+
+<span class="comment"># Test sudo works</span>
+<span class="cmd">sudo</span> <span class="arg">whoami</span>
+<span class="ok">root</span>
+
+<span class="comment"># Return to previous user</span>
+<span class="cmd">exit</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>The <code>-</code> flag matters:</strong> <code>su adminuser</code> switches user but keeps your current environment. <code>su - adminuser</code> (with dash) creates a full login shell — loading adminuser's <code>~/.bashrc</code>, <code>PATH</code>, and environment variables. Always prefer <code>su -</code>.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 6. SSH LOGIN -->
+  <section class="section" id="s6">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-network-wired"></i></div>
+      <div class="section-title-wrap">
+        <h2>SSH Login from Terminal</h2>
+        <p>Connecting to a remote server securely</p>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Connect to the server</h4>
+          <div class="code-block">
+            <div class="code-bar">
+              <div class="lang"><i class="fa-solid fa-terminal"></i> bash — run on your Mac</div>
+              <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+            </div>
+            <pre><span class="cmd">ssh</span> <span class="arg">adminuser@vps01.example.net</span>
+<span class="comment"># or using IP address</span>
+<span class="cmd">ssh</span> <span class="arg">adminuser@203.0.113.10</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Enter your password when prompted</h4>
+          <p>Once authenticated, you'll see your server's shell prompt: <code>[adminuser@vps01 ~]$</code></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Pro tip — SSH Keys:</strong> Instead of typing a password every time, set up SSH key authentication. Run <code>ssh-keygen</code> on your Mac, then <code>ssh-copy-id adminuser@vps01.example.net</code>. Future logins become passwordless and more secure.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 7. HOST FINGERPRINT -->
+  <section class="section" id="s7">
+    <div class="section-header">
+      <div class="section-icon icon-yellow"><i class="fa-solid fa-fingerprint"></i></div>
+      <div class="section-title-wrap">
+        <h2>Verifying Host Fingerprints</h2>
+        <p>Protecting against man-in-the-middle attacks</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">On first connection to any server, SSH presents a fingerprint for you to verify. This is a critical security step — never blindly accept it.</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash — run ON the server (as root)</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># Get the server's actual ED25519 fingerprint</span>
+<span class="cmd">ssh-keygen</span> <span class="flag">-lf</span> <span class="arg">/etc/ssh/ssh_host_ed25519_key.pub</span>
+
+<span class="out">256 SHA256:lLM3w0IddUPLOWeCxYG8RFH0qMRxW5C7L/tz5z+hAkQ no comment (ED25519)</span>
+
+<span class="comment"># This must exactly match what SSH shows during connection</span></pre>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Scenario</th><th>What it means</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge-pill pill-green">Fingerprints match</span></td>
+            <td>Server is genuine</td>
+            <td>Type <code>yes</code> to continue</td>
+          </tr>
+          <tr>
+            <td><span class="badge-pill pill-red">Fingerprints differ</span></td>
+            <td>Possible MITM attack or server rebuild</td>
+            <td>Do NOT connect — investigate immediately</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>After a server rebuild:</strong> If your server was reinstalled, it gets new SSH host keys. SSH will warn you with "REMOTE HOST IDENTIFICATION HAS CHANGED". Remove the old key with <code>ssh-keygen -R vps01.example.net</code> then reconnect and reverify.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 8. READING LOGS -->
+  <section class="section" id="s8">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-file-lines"></i></div>
+      <div class="section-title-wrap">
+        <h2>Reading Server Logs</h2>
+        <p>The essential skill for understanding what your server is doing</p>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>System messages log</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo tail</span> <span class="flag">-f</span> <span class="arg">/var/log/messages</span>          <span class="comment"># live follow</span>
+<span class="cmd">sudo tail</span> <span class="flag">-100</span> <span class="arg">/var/log/messages</span>        <span class="comment"># last 100 lines</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Apache error log (cPanel path)</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo tail</span> <span class="flag">-100</span> <span class="arg">/etc/apache2/logs/error_log</span>   <span class="comment"># cPanel</span>
+<span class="cmd">sudo tail</span> <span class="flag">-100</span> <span class="arg">/etc/httpd/logs/error_log</span>      <span class="comment"># standard RHEL</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Systemd journal (most powerful)</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Errors only, within a date range</span>
+<span class="cmd">sudo journalctl</span> <span class="flag">--since</span> <span class="arg">"2026-03-01"</span> <span class="flag">--until</span> <span class="arg">"2026-03-15"</span> <span class="flag">-p</span> <span class="arg">err</span>
+
+<span class="comment"># Follow live errors</span>
+<span class="cmd">sudo journalctl</span> <span class="flag">-f</span> <span class="flag">-p</span> <span class="arg">err</span>
+
+<span class="comment"># Errors from a specific service</span>
+<span class="cmd">sudo journalctl</span> <span class="flag">-u</span> <span class="arg">httpd</span> <span class="flag">-n</span> <span class="arg">50</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Search logs for keywords</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo grep</span> <span class="flag">-i</span> <span class="arg">"error\|panic\|oom\|kill"</span> /var/log/messages | <span class="cmd">tail</span> <span class="arg">-50</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Press <code>q</code> to exit</strong> when using <code>journalctl</code> in pager mode. Press <code>Ctrl+C</code> to stop live log following with <code>tail -f</code>.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 9. FIREWALL LOGS -->
+  <section class="section" id="s9">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-fire-flame-curved"></i></div>
+      <div class="section-title-wrap">
+        <h2>Understanding Firewall Logs</h2>
+        <p>Decoding the noise in /var/log/messages</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Firewall block logs are normal background noise on any public-facing server. Here's how to read them:</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-file-lines"></i> log sample</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre><span class="out">Mar 15 07:27:46 server1 kernel: Firewall: *</span><span class="hi">UDP_IN Blocked</span><span class="out">*
+  IN=eth0  SRC=199.192.19.170  DST=</span><span class="hi">255.255.255.255</span><span class="out">
+  PROTO=UDP  SPT=</span><span class="ok">11002</span><span class="out">  DPT=</span><span class="ok">11002</span>
+
+Mar 15 07:27:57 server1 kernel: Firewall: *</span><span class="hi">TCP_IN Blocked</span><span class="out">*
+  IN=eth0  SRC=167.94.146.32  DST=203.0.113.10
+  PROTO=TCP  DPT=</span><span class="ok">9235</span><span class="out">  </span><span class="hi">SYN</span><span class="out">  URGP=0</span></pre>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Log Type</th><th>Key Indicators</th><th>Meaning</th><th>Threat</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>UDP Broadcast Blocked</td>
+            <td><code>DST=255.255.255.255</code></td>
+            <td>Network discovery broadcasts — not targeting your server</td>
+            <td><span class="badge-pill pill-green">None</span></td>
+          </tr>
+          <tr>
+            <td>TCP Port Scan Blocked</td>
+            <td><code>SYN</code> + random <code>DPT</code></td>
+            <td>Bot scanning for open ports — internet background noise</td>
+            <td><span class="badge-pill pill-blue">Low</span></td>
+          </tr>
+          <tr>
+            <td>SSH Brute Force</td>
+            <td><code>PAM-hulk: TOO MANY FAILURES</code></td>
+            <td>Automated login attempts on SSH — being blocked by cPHulk</td>
+            <td><span class="badge-pill pill-orange">Medium</span></td>
+          </tr>
+          <tr>
+            <td>OOM Kill</td>
+            <td><code>Out of memory: Killed process</code></td>
+            <td>Server ran out of RAM — kernel killed MySQL to survive</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Your firewall is working:</strong> Seeing lots of "Blocked" entries is <em>good</em> — it means the firewall is actively rejecting unwanted traffic. Concern arises when you see <em>allowed</em> connections to unexpected ports.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 10. DOWNTIME INVESTIGATION -->
+  <section class="section" id="s10">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-magnifying-glass-chart"></i></div>
+      <div class="section-title-wrap">
+        <h2>Investigating Server Downtime</h2>
+        <p>A systematic diagnostic checklist</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">When your sites go down and you have to reboot, use this checklist to find the cause.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Check reboot history</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">last reboot</span> | <span class="cmd">head</span> <span class="arg">-20</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Check for OOM kills</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo grep</span> <span class="flag">-i</span> <span class="arg">"out of memory\|oom\|killed process"</span> /var/log/messages</pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Check RAM and swap</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">free</span> <span class="flag">-h</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Check disk space</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">df</span> <span class="flag">-h</span>     <span class="comment"># danger zone if any partition &gt; 85%</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Check for failed services</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo systemctl</span> <span class="flag">--failed</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <h4>Deep journal error scan</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo journalctl</span> <span class="flag">--since</span> <span class="arg">"2026-03-01"</span> <span class="flag">-p</span> <span class="arg">err</span> <span class="flag">--no-pager</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 11. OOM CRASHES -->
+  <section class="section" id="s11">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-memory"></i></div>
+      <div class="section-title-wrap">
+        <h2>Out of Memory (OOM) Crashes</h2>
+        <p>The root cause of the server's recurring downtime</p>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>What was found on this server:</strong><br>
+        <code>Mar 01 03:36:37 kernel: Out of memory: Killed process 488238 (mysqld)</code><br>
+        <code>Mar 13 21:29:08 kernel: Out of memory: Killed process 762508 (mysqld)</code><br><br>
+        MySQL was killed by the Linux kernel on both crash dates because the server ran out of RAM.
+      </div>
+    </div>
+
+    <p style="margin: 16px 0 10px; font-size:14px; color:var(--muted);">The server's memory situation at time of investigation:</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> output of: free -h</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre>              total     used      free    shared  buff/cache  available
+Mem:          1.9Gi    <span class="hi">1.0Gi</span>    <span class="hi">101Mi</span>     9.0Mi      795Mi      717Mi
+Swap:            <span class="hi">0B</span>       <span class="hi">0B</span>       <span class="hi">0B</span>             <span class="comment">← NO SWAP AT ALL</span></pre>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:var(--red);"><i class="fa-solid fa-circle-xmark"></i></div>
+        <h4>Only 101MB RAM Free</h4>
+        <p>Critically low headroom. Any spike in traffic or a cron job can push it to zero.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--red);"><i class="fa-solid fa-circle-xmark"></i></div>
+        <h4>Zero Swap Space</h4>
+        <p>When RAM fills up, the kernel has no fallback — it immediately kills the largest process (MySQL).</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--orange);"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h4>Disk at 78% (29GB/40GB)</h4>
+        <p>Monitor this. At 85–90%, some services start misbehaving. Clean up logs, backups, or old files.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>What happens during an OOM event:</strong>
+        <ol style="margin-top:8px; padding-left:20px; line-height:2;">
+          <li>RAM fills up completely</li>
+          <li>Kernel OOM killer activates</li>
+          <li>MySQL (largest process) gets killed</li>
+          <li>cPanel services start failing (PHP-FPM, Dovecot, chronyd)</li>
+          <li>Sites become unreachable</li>
+          <li>Cascading failures — reboot required</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 12. ADDING SWAP -->
+  <section class="section" id="s12">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-hard-drive"></i></div>
+      <div class="section-title-wrap">
+        <h2>Adding Swap Space</h2>
+        <p>The most critical fix to prevent future OOM crashes</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Swap is disk space used as overflow RAM. When physical RAM is exhausted, the kernel moves inactive memory pages to swap instead of killing processes. Essential for any server with limited RAM.</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — run as root or with sudo</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre><span class="comment"># 1. Create a 2GB swap file</span>
+<span class="cmd">sudo fallocate</span> <span class="flag">-l</span> <span class="arg">2G /swapfile</span>
+
+<span class="comment"># 2. Secure it — only root should read it</span>
+<span class="cmd">sudo chmod</span> <span class="arg">600 /swapfile</span>
+
+<span class="comment"># 3. Format it as swap space</span>
+<span class="cmd">sudo mkswap</span> <span class="arg">/swapfile</span>
+
+<span class="comment"># 4. Enable it immediately</span>
+<span class="cmd">sudo swapon</span> <span class="arg">/swapfile</span>
+
+<span class="comment"># 5. Make it permanent across reboots</span>
+<span class="cmd">echo</span> <span class="arg">'/swapfile none swap sw 0 0'</span> | <span class="cmd">sudo tee</span> <span class="flag">-a</span> <span class="arg">/etc/fstab</span>
+
+<span class="comment"># 6. Verify it's active</span>
+<span class="cmd">free</span> <span class="flag">-h</span>
+<span class="out">              total     used     free
+Swap:         </span><span class="ok">2.0Gi</span><span class="out">      0B     </span><span class="ok">2.0Gi</span><span class="out">   ✓</span></pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>How much swap?</strong> A common rule of thumb: use swap equal to your RAM size. For a 2GB RAM server, 2GB swap is appropriate. For servers with 8GB+ RAM, 4GB swap is usually sufficient. Swap is slower than RAM — it's a safety net, not a performance boost.</div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Long-term fix:</strong> Swap prevents crashes but doesn't solve the underlying memory pressure. Consider upgrading your VPS plan to one with more RAM, or optimizing MySQL and Apache memory settings in cPanel's WHM.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 13. DOWNLOADING LOGS -->
+  <section class="section" id="s13">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-download"></i></div>
+      <div class="section-title-wrap">
+        <h2>Downloading Files from a Server</h2>
+        <p>Copying log files to your local machine using SCP</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;"><strong>SCP (Secure Copy Protocol)</strong> transfers files over SSH. Always run it <strong>from your local machine</strong> — not from inside the server.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Save the file on the server first</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on the server</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sudo journalctl</span> <span class="flag">--since</span> <span class="arg">"2026-03-01"</span> <span class="flag">-p</span> <span class="arg">err</span> > <span class="out">/tmp/server_errors.txt</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Download to your Mac</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on your Mac (new terminal tab)</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">scp</span> <span class="arg">adminuser@vps01.example.net:/tmp/server_errors.txt</span> \
+    <span class="arg">~/Desktop/server_errors.txt</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>One-liner alternative:</strong> Do it all in one command from your Mac without saving to a temp file first:
+        <div class="code-block" style="margin-top:8px;">
+          <pre><span class="cmd">ssh</span> <span class="arg">adminuser@vps01.example.net</span> <span class="arg">"sudo journalctl -p err"</span> > <span class="out">~/Desktop/errors.txt</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Direction</th><th>Use case</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>scp user@host:/remote/file /local/path</code></td>
+            <td>Server → Mac</td>
+            <td>Download logs, backups, files</td>
+          </tr>
+          <tr>
+            <td><code>scp /local/file user@host:/remote/path</code></td>
+            <td>Mac → Server</td>
+            <td>Upload configs, scripts, files</td>
+          </tr>
+          <tr>
+            <td><code>scp -r user@host:/remote/dir /local/dir</code></td>
+            <td>Server → Mac (folder)</td>
+            <td>Download entire directories</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 14. CRASH TIMELINE -->
+  <section class="section" id="s14">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="section-title-wrap">
+        <h2>Server Crash Timeline — March 2026</h2>
+        <p>Reconstructed from journalctl error logs</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date & Time</th><th>Event</th><th>Root Cause</th><th>Severity</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Mar 1, 03:36</td>
+            <td><code>Out of memory: Killed mysqld (PID 488238)</code></td>
+            <td>RAM exhausted — no swap</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>Mar 1, 04:56</td>
+            <td>Server reboot</td>
+            <td>Cascading service failures after OOM</td>
+            <td><span class="badge-pill pill-red">Downtime</span></td>
+          </tr>
+          <tr>
+            <td>Mar 13, 21:29</td>
+            <td><code>Out of memory: Killed mysqld (PID 762508)</code></td>
+            <td>RAM exhausted again — swap still not added</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>Mar 14, 07:13</td>
+            <td>Server reboot</td>
+            <td>Cascading failures from Mar 13 OOM</td>
+            <td><span class="badge-pill pill-red">Downtime</span></td>
+          </tr>
+          <tr>
+            <td>Mar 14, 10:16 → 11:29</td>
+            <td>Second reboot same day</td>
+            <td>Services still unstable post-OOM</td>
+            <td><span class="badge-pill pill-orange">Unstable</span></td>
+          </tr>
+          <tr>
+            <td>Mar 15, 08:20</td>
+            <td><code>chronyd: Failed to set up mount namespacing</code></td>
+            <td>Time sync service crashed — likely memory or filesystem issue</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>Mar 15, 09:20</td>
+            <td>Server reboot (today)</td>
+            <td>chronyd crash caused server to go down</td>
+            <td><span class="badge-pill pill-red">Downtime</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="font-weight:600; margin-bottom:12px;">Recurring issues also identified:</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:var(--red);"><i class="fa-solid fa-circle-xmark"></i></div>
+        <h4>cpanel_php_fpm.service — FAILED</h4>
+        <p>PHP-FPM for cPanel failed on every boot. Investigate with: <code>sudo journalctl -u cpanel_php_fpm -n 100</code></p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--orange);"><i class="fa-solid fa-envelope"></i></div>
+        <h4>Dovecot Policy Server Timeouts</h4>
+        <p>Email authentication experiencing 2-second timeouts. May affect email delivery. Related to resource exhaustion.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--yellow);"><i class="fa-solid fa-user-secret"></i></div>
+        <h4>Ongoing SSH Brute Force</h4>
+        <p>Constant login attempts from external IPs. cPHulk is blocking them. Consider changing SSH to a non-standard port.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-list-check"></i>
+      <div>
+        <strong>Priority Action List:</strong>
+        <ol style="margin-top:8px; padding-left:20px; line-height:2.2;">
+          <li><strong>Add 2GB swap immediately</strong> — prevents OOM crashes (see Section 12)</li>
+          <li><strong>Fix cpanel_php_fpm</strong> — run <code>sudo journalctl -u cpanel_php_fpm -n 100</code></li>
+          <li><strong>Monitor disk space</strong> — currently 78%, clean up if approaching 85%</li>
+          <li><strong>Consider upgrading RAM</strong> — 2GB is very tight for a cPanel server with multiple sites</li>
+          <li><strong>Set up uptime monitoring</strong> — tools like UptimeRobot (free) alert you instantly when sites go down</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════ FOOTER -->
+<footer>
+  <p>Linux Server Administration Guide &nbsp;·&nbsp; <span>vps01.example.net</span> &nbsp;·&nbsp; Generated March 2026</p>
+  <p style="margin-top:6px; font-size:11px;">Built with GitHub Copilot — for educational and operational reference</p>
+</footer>
+
+<script src="../assets/private-values-loader.js" data-secret-src="../secrets/private-values.json"></script>
+<script src="../assets/theme-toggle.js"></script>
+</body>
+</html>

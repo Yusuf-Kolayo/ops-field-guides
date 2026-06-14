@@ -1,0 +1,1662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SSH Security Hardening — Field Guide</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c27;
+      --card:      #1e2336;
+      --border:    #2a3050;
+      --accent:    #4f8ef7;
+      --accent2:   #7c5cfc;
+      --green:     #3dd68c;
+      --red:       #f56565;
+      --orange:    #f6ad55;
+      --yellow:    #f6e05e;
+      --text:      #e2e8f0;
+      --muted:     #7a869a;
+      --code-bg:   #12151f;
+      --radius:    12px;
+      --radius-sm: 7px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #141828 0%, #1a2040 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 56px 24px 48px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(245,101,101,.12);
+      border: 1px solid rgba(245,101,101,.3);
+      color: var(--red);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: clamp(26px, 5vw, 42px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      background: linear-gradient(135deg, #e2e8f0, #7c9ec8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 620px;
+      margin: 0 auto 28px;
+    }
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta-pill i { color: var(--accent); font-size: 11px; }
+
+    /* ── LAYOUT ─────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      max-width: 1180px;
+      margin: 0 auto;
+      gap: 0;
+    }
+
+    /* ── SIDEBAR ────────────────────────────────── */
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 32px 0 32px 24px;
+      border-right: 1px solid var(--border);
+    }
+    aside::-webkit-scrollbar { width: 4px; }
+    aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding-left: 4px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .15s;
+      margin-bottom: 2px;
+    }
+    .nav-link:hover, .nav-link.active {
+      background: rgba(79,142,247,.1);
+      color: var(--accent);
+    }
+    .nav-link i { width: 16px; text-align: center; font-size: 12px; }
+    .nav-num {
+      margin-left: auto;
+      background: var(--border);
+      color: var(--muted);
+      font-size: 10px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── MAIN ───────────────────────────────────── */
+    main {
+      padding: 40px 40px 80px;
+      min-width: 0;
+    }
+
+    /* ── SECTION ────────────────────────────────── */
+    .section {
+      margin-bottom: 64px;
+      scroll-margin-top: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+    .icon-blue   { background: rgba(79,142,247,.15); color: var(--accent); }
+    .icon-purple { background: rgba(124,92,252,.15); color: var(--accent2); }
+    .icon-green  { background: rgba(61,214,140,.15); color: var(--green); }
+    .icon-red    { background: rgba(245,101,101,.15); color: var(--red); }
+    .icon-orange { background: rgba(246,173,85,.15); color: var(--orange); }
+    .icon-yellow { background: rgba(246,224,94,.15); color: var(--yellow); }
+
+    .section-title-wrap h2 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      margin-bottom: 3px;
+    }
+    .section-title-wrap p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── STEP / CALLOUT ─────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 16px; }
+    .step {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .step-num {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: rgba(79,142,247,.15);
+      border: 1px solid rgba(79,142,247,.3);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .step-body p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+
+    /* ── CODE BLOCK ─────────────────────────────── */
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .code-bar .lang {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .code-bar .lang i { color: var(--accent); }
+    .code-bar .dots { display: flex; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+    pre {
+      padding: 16px 18px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      overflow-x: auto;
+      color: #c9d1e0;
+    }
+    pre .cmd  { color: #79c0ff; }
+    pre .flag { color: #d2a8ff; }
+    pre .arg  { color: #a8d8a8; }
+    pre .out  { color: var(--muted); }
+    pre .hi   { color: var(--red); font-weight: 600; }
+    pre .ok   { color: var(--green); }
+    pre .comment { color: #4a5568; font-style: italic; }
+
+    /* ── INFO CARDS ─────────────────────────────── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 16px 0; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .card-icon { font-size: 20px; margin-bottom: 10px; }
+    .card h4 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+    .card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── CALLOUTS ───────────────────────────────── */
+    .callout {
+      display: flex;
+      gap: 14px;
+      padding: 16px 18px;
+      border-radius: var(--radius-sm);
+      margin: 14px 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .callout i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+    .callout-tip    { background: rgba(61,214,140,.08);  border: 1px solid rgba(61,214,140,.2);  color: #a0f0cc; }
+    .callout-tip i  { color: var(--green); }
+    .callout-warn   { background: rgba(246,173,85,.08);  border: 1px solid rgba(246,173,85,.2);  color: #fbd38d; }
+    .callout-warn i { color: var(--orange); }
+    .callout-danger { background: rgba(245,101,101,.08); border: 1px solid rgba(245,101,101,.2); color: #fca5a5; }
+    .callout-danger i { color: var(--red); }
+    .callout-info   { background: rgba(79,142,247,.08);  border: 1px solid rgba(79,142,247,.2);  color: #93c5fd; }
+    .callout-info i { color: var(--accent); }
+
+    /* ── TABLE ──────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid rgba(42,48,80,.5);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge-pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .pill-red    { background: rgba(245,101,101,.15); color: #fca5a5; }
+    .pill-orange { background: rgba(246,173,85,.15);  color: #fbd38d; }
+    .pill-green  { background: rgba(61,214,140,.15);  color: #6ee7b7; }
+    .pill-blue   { background: rgba(79,142,247,.15);  color: #93c5fd; }
+    .pill-purple { background: rgba(124,92,252,.15);  color: #c4b5fd; }
+
+    /* ── DIVIDER ────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+    /* ── INLINE CODE ────────────────────────────── */
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #93c5fd;
+    }
+
+    /* ── PROGRESS / STATUS CHECKLIST ───────────── */
+    .checklist { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+    }
+    .check-item .icon-status { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+    .status-done  { background: rgba(61,214,140,.15); color: var(--green); }
+    .status-warn  { background: rgba(246,173,85,.15); color: var(--orange); }
+    .status-todo  { background: rgba(79,142,247,.15); color: var(--accent); }
+    .check-item span { flex: 1; }
+    .check-item .step-label { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+    /* ── ATTACK COUNTER ─────────────────────────── */
+    .threat-stat {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin: 16px 0;
+    }
+    .stat-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-box .stat-num {
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: -.03em;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+    .stat-box p { font-size: 12px; color: var(--muted); }
+    .stat-red  .stat-num { color: var(--red); }
+    .stat-orange .stat-num { color: var(--orange); }
+    .stat-green .stat-num { color: var(--green); }
+    .stat-blue .stat-num  { color: var(--accent); }
+
+    /* ── FOOTER ─────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 32px 24px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    footer span { color: var(--accent); }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { padding: 24px 18px 60px; }
+    }
+  </style>
+  <link rel="stylesheet" href="../assets/theme.css" />
+  <script src="../assets/theme-init.js"></script>
+</head>
+<body>
+
+  <a href="../index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Home</a>  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme"></button>
+
+<!-- ═══════════════════════════════════════════ HEADER -->
+<header>
+  <div class="badge"><i class="fa-solid fa-shield-halved"></i> SSH Security Hardening</div>
+  <h1>Server Security Hardening<br>Field Guide</h1>
+  <p>A complete, hands-on record of hardening a production CentOS VPS against active brute-force SSH attacks — covering port migration, firewall rules, SELinux, non-root users, fail2ban, and secret rotation.</p>
+  <div class="meta-pills">
+    <span class="meta-pill"><i class="fa-brands fa-centos"></i> CentOS / RHEL</span>
+    <span class="meta-pill"><i class="fa-solid fa-server"></i> vps01.example.net</span>
+    <span class="meta-pill"><i class="fa-solid fa-network-wired"></i> iptables (not firewalld)</span>
+    <span class="meta-pill"><i class="fa-solid fa-lock"></i> SELinux Enforcing</span>
+    <span class="meta-pill"><i class="fa-solid fa-calendar"></i> April 2026</span>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- ═══════════════════════════════════════════ SIDEBAR -->
+<aside>
+  <div style="padding: 12px 0 20px 4px;">
+    <p class="sidebar-label">Contents</p>
+    <a href="#s1"  class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Threat Discovery <span class="nav-num">1</span></a>
+    <a href="#s2"  class="nav-link"><i class="fa-solid fa-door-closed"></i> Changing SSH Port <span class="nav-num">2</span></a>
+    <a href="#s3"  class="nav-link"><i class="fa-solid fa-circle-exclamation"></i> Lockout Recovery <span class="nav-num">3</span></a>
+    <a href="#s4"  class="nav-link"><i class="fa-solid fa-fire"></i> iptables Rules <span class="nav-num">4</span></a>
+    <a href="#s5"  class="nav-link"><i class="fa-solid fa-shield-virus"></i> SELinux for SSH <span class="nav-num">5</span></a>
+    <a href="#s6"  class="nav-link"><i class="fa-solid fa-user-plus"></i> Non-Root SSH User <span class="nav-num">6</span></a>
+    <a href="#s7"  class="nav-link"><i class="fa-solid fa-ban"></i> Disable Root Login <span class="nav-num">7</span></a>
+    <a href="#s8"  class="nav-link"><i class="fa-solid fa-pen-to-square"></i> Renaming a User <span class="nav-num">8</span></a>
+    <a href="#s9"  class="nav-link"><i class="fa-solid fa-robot"></i> fail2ban Setup <span class="nav-num">9</span></a>
+    <a href="#s10" class="nav-link"><i class="fa-solid fa-key"></i> SSH Key Auth <span class="nav-num">10</span></a>
+    <a href="#s11" class="nav-link"><i class="fa-solid fa-rotate"></i> Rotating Secrets <span class="nav-num">11</span></a>
+    <a href="#s12" class="nav-link"><i class="fa-solid fa-list-check"></i> Hardening Checklist <span class="nav-num">12</span></a>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════ MAIN -->
+<main>
+
+  <!-- ─────────────────────── 1. THREAT DISCOVERY -->
+  <section class="section" id="s1">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="section-title-wrap">
+        <h2>Threat Discovery — Active Brute-Force SSH Attack</h2>
+        <p>Identifying and quantifying an active attack from SSH auth logs</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">While investigating the server, the SSH authentication log revealed an active brute-force campaign: automated login attempts from external IPs probing the <code>root</code> account and a dictionary of common system usernames.</p>
+
+    <div class="threat-stat">
+      <div class="stat-box stat-red">
+        <div class="stat-num">22</div>
+        <p>Failed login attempts confirmed in current log file</p>
+      </div>
+      <div class="stat-box stat-orange">
+        <div class="stat-num">10</div>
+        <p>Distinct usernames targeted — all automated wordlist guesses</p>
+      </div>
+      <div class="stat-box stat-blue">
+        <div class="stat-num">root</div>
+        <p>Primary target — attempted 9 times in this window alone</p>
+      </div>
+      <div class="stat-box stat-green">
+        <div class="stat-num">0</div>
+        <p>Successful unauthorised logins</p>
+      </div>
+    </div>
+
+    <p style="margin: 16px 0 10px; font-size:14px; color:var(--muted);">Step 1 — Count total failed attempts in the log:</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash — run as root on the server</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="cmd">grep</span> <span class="flag">-c</span> <span class="arg">"Failed password"</span> /var/log/secure
+<span class="ok">22</span></pre>
+    </div>
+
+    <p style="margin: 16px 0 10px; font-size:14px; color:var(--muted);">Step 2 — The naive username extraction (reveals a parsing quirk):</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="cmd">grep</span> <span class="arg">"Failed password"</span> /var/log/secure | <span class="cmd">awk</span> <span class="arg">'{print $9}'</span> | <span class="cmd">sort</span> | <span class="cmd">uniq -c</span> | <span class="cmd">sort -rn</span> | <span class="cmd">head -10</span>
+<span class="out">     13 </span><span class="hi">invalid</span>
+<span class="out">      9 root</span></pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Why does "invalid" appear as a username?</strong> SSH logs use two different line formats:
+        <br><br>
+        Known user: &nbsp;<code>Failed password for <strong>root</strong> from 1.2.3.4 ...</code> &nbsp;→ field 9 = <code>root</code><br>
+        Unknown user: <code>Failed password for invalid user <strong>admin</strong> from 1.2.3.4 ...</code> &nbsp;→ field 9 = <code>invalid</code>
+        <br><br>
+        <code>awk '{print $9}'</code> grabs the word <em>"invalid"</em> instead of the actual username when the account doesn't exist on the server. The real username is in field 11 in that case.
+      </div>
+    </div>
+
+    <p style="margin: 16px 0 10px; font-size:14px; color:var(--muted);">Step 3 — The correct command that handles both log formats:</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="cmd">grep</span> <span class="arg">"Failed password"</span> /var/log/secure | <span class="cmd">awk</span> <span class="arg">'{
+    if ($9 == "invalid") print $11
+    else print $9
+}'</span> | <span class="cmd">sort</span> | <span class="cmd">uniq -c</span> | <span class="cmd">sort -rn</span> | <span class="cmd">head -20</span>
+<span class="out">      9 </span><span class="hi">root</span>
+<span class="out">      3 orangepi
+      3 admin
+      1 marketing
+      1 green
+      1 frappe
+      1 elasticsearch
+      1 deploy
+      1 david
+      1 carlos</span></pre>
+    </div>
+
+    <p style="margin: 16px 0 10px; font-size:14px; color:var(--muted);">What this wordlist reveals — these are not random guesses:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Username Attempted</th><th>Why Bots Try It</th><th>Threat Type</th></tr></thead>
+        <tbody>
+          <tr><td><code>root</code></td><td>Default superuser on every Linux server</td><td><span class="badge-pill pill-red">High</span></td></tr>
+          <tr><td><code>admin</code></td><td>Common default on routers, VPS control panels, generic setups</td><td><span class="badge-pill pill-red">High</span></td></tr>
+          <tr><td><code>deploy</code></td><td>Very common name for deployment service accounts</td><td><span class="badge-pill pill-orange">Medium</span></td></tr>
+          <tr><td><code>elasticsearch</code></td><td>Targets servers running Elasticsearch (often misconfigured)</td><td><span class="badge-pill pill-orange">Medium</span></td></tr>
+          <tr><td><code>frappe</code></td><td>Targets servers running ERPNext/Frappe framework</td><td><span class="badge-pill pill-orange">Medium</span></td></tr>
+          <tr><td><code>orangepi</code></td><td>Default user on Orange Pi single-board computers</td><td><span class="badge-pill pill-blue">Low</span></td></tr>
+          <tr><td><code>david</code>, <code>carlos</code>, <code>marketing</code>, <code>green</code></td><td>Human names / department accounts — sourced from credential leak databases</td><td><span class="badge-pill pill-blue">Low</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin: 20px 0 10px; font-size:14px; color:var(--muted);">Step 4 — List the top attacking IP addresses:</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="cmd">grep</span> <span class="arg">"Failed password"</span> /var/log/secure | <span class="cmd">awk</span> <span class="arg">'{
+    if ($9 == "invalid") print $13
+    else print $11
+}'</span> | <span class="cmd">sort</span> | <span class="cmd">uniq -c</span> | <span class="cmd">sort -rn</span> | <span class="cmd">head -10</span></pre>
+    </div>
+
+    <p style="margin: 20px 0 10px; font-size:14px; color:var(--muted);">Step 5 — After completing the investigation, clear shell history to remove sensitive commands:</p>
+
+    <div class="code-block">
+      <div class="code-bar">
+        <div class="lang"><i class="fa-solid fa-terminal"></i> bash — clear history containing token/credential output</div>
+        <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
+      </div>
+      <pre><span class="comment"># Clear in-memory history and write empty state to file</span>
+<span class="cmd">history</span> <span class="flag">-c</span> &amp;&amp; <span class="cmd">history</span> <span class="flag">-w</span>
+
+<span class="comment"># Belt-and-suspenders: overwrite the history file directly</span>
+<span class="cmd">cat</span> /dev/null > ~/.bash_history
+
+<span class="comment"># Verify: file should be empty (0 lines)</span>
+<span class="cmd">wc -l</span> ~/.bash_history
+<span class="ok">0 /root/.bash_history</span>
+
+<span class="comment"># Verify: in-memory history shows only post-clear commands — this is normal</span>
+<span class="cmd">history</span>
+<span class="out">    1  2026-04-13 07:18:37 cat /dev/null > ~/.bash_history
+    2  2026-04-13 07:20:26 wc -l ~/.bash_history
+    3  2026-04-13 07:20:34 history</span>
+<span class="comment"># ✓ Only harmless commands remain — the sensitive output is gone</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Why the in-memory history still shows 3 entries after clearing:</strong> <code>history -c</code> clears in-memory history for the current session. The shell then starts accumulating again immediately. Those 3 entries are only the harmless commands typed <em>after</em> the clear — the sensitive commands are gone. When the session closes, only these harmless entries are written back to the file.</div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Watch for other open sessions:</strong> If multiple SSH sessions are open for the same user simultaneously, each holds its own in-memory history. When those sessions close, they can overwrite the now-empty history file with their own history. Clear history in all active sessions, or run <code>unset HISTFILE</code> in each to prevent them from writing on exit.</div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Why does this happen?</strong> Automated bots continuously scan the entire internet for port 22 (SSH). This isn't targeted at you specifically — it is the background radiation of the internet. Any server on port 22 with a weak or commonly-used root password is eventually compromised. The solution is layered defence: non-standard port + non-root user + fail2ban + SSH keys.</div>
+    </div>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>Consequences of a successful brute force:</strong> An attacker gaining root SSH access means full server compromise — your databases, application code, .env files with API keys, all hosted client sites, and the ability to use your server as a launch pad to attack other systems. This is a critical risk requiring immediate action.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 2. CHANGING SSH PORT -->
+  <section class="section" id="s2">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-door-closed"></i></div>
+      <div class="section-title-wrap">
+        <h2>Changing the SSH Port</h2>
+        <p>Moving SSH off port 22 eliminates 99% of automated attacks instantly</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Changing the SSH port from the default <code>22</code> to a non-standard port (e.g. <code>2222</code>) is called <em>security through obscurity</em>. While not a complete defence on its own, it immediately stops all automated bots that only probe port 22.</p>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>Critical — do these steps in order.</strong> Open your firewall and configure SELinux for the new port <em>before</em> restarting sshd, otherwise you will lock yourself out. Consider keeping a hosting provider web console session open as a backup.</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Edit the SSH daemon configuration</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on the server as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">vi</span> <span class="arg">/etc/ssh/sshd_config</span>
+
+<span class="comment"># Find the line:</span>
+<span class="out">#Port 22</span>
+
+<span class="comment"># Change it to (remove the # and update the number):</span>
+<span class="ok">Port 2222</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Open the new port in the firewall FIRST</h4>
+          <p>See Section 4 for full iptables details. At minimum, run this before restarting sshd:</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">iptables</span> <span class="flag">-I INPUT</span> <span class="flag">-p</span> <span class="arg">tcp</span> <span class="flag">--dport</span> <span class="arg">2222</span> <span class="flag">-j</span> <span class="arg">ACCEPT</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Tell SELinux about the new port FIRST</h4>
+          <p>See Section 5 for full SELinux details. At minimum, run this before restarting sshd:</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">semanage port</span> <span class="flag">-a</span> <span class="flag">-t</span> <span class="arg">ssh_port_t</span> <span class="flag">-p</span> <span class="arg">tcp 2222</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Restart sshd to apply the new port</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">systemctl restart sshd</span>
+
+<span class="comment"># Confirm sshd is listening on the new port</span>
+<span class="cmd">ss</span> <span class="flag">-tlnp</span> | <span class="cmd">grep</span> <span class="arg">sshd</span>
+<span class="ok">LISTEN  0  128  0.0.0.0:2222  0.0.0.0:*  users:(("sshd",...))</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Test the new port in a NEW terminal BEFORE closing the current session</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — run from your Mac, new tab</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">root@vps01.example.net</span>
+<span class="comment"># Only close the old terminal AFTER this succeeds</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Port choice:</strong> Port <code>2222</code> is a common alternative and easy to remember. For even less visibility, choose a random high port like <code>49201</code> or <code>51022</code>. Avoid well-known service ports (e.g. 80, 443, 3306, 5432). Ports in the range 1024–65535 are valid choices.</div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Update your SSH client config:</strong> Add a permanent alias in <code>~/.ssh/config</code> on your Mac so you don't have to remember the port every time:
+        <div class="code-block" style="margin-top: 10px;">
+          <div class="code-bar"><div class="lang"><i class="fa-solid fa-file-lines"></i> ~/.ssh/config — on your Mac</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+          <pre><span class="arg">Host</span> <span class="ok">prod-vps</span>
+    <span class="arg">HostName</span>     <span class="out">vps01.example.net</span>
+    <span class="arg">User</span>         <span class="out">adminops</span>
+    <span class="arg">Port</span>         <span class="ok">2222</span>
+    <span class="arg">IdentityFile</span> <span class="out">~/.ssh/id_ed25519</span>
+
+<span class="comment"># Now just type: ssh prod-vps</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 3. LOCKOUT RECOVERY -->
+  <section class="section" id="s3">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-circle-exclamation"></i></div>
+      <div class="section-title-wrap">
+        <h2>SSH Lockout Recovery — What Happened and How to Fix It</h2>
+        <p>Getting back into a server when you've locked yourself out</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">After changing the SSH port and restarting sshd, connection on port 2222 failed completely. The server was inaccessible. Two separate systems were blocking the new port simultaneously.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:var(--red);"><i class="fa-solid fa-fire"></i></div>
+        <h4>Root Cause 1 — iptables</h4>
+        <p>The firewall had no rule allowing TCP port 2222. All inbound connections on the new port were dropped silently.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--orange);"><i class="fa-solid fa-shield-virus"></i></div>
+        <h4>Root Cause 2 — SELinux</h4>
+        <p>SELinux only knew port 22 was legitimate for SSH. It blocked sshd from binding to 2222 with a policy violation.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--green);"><i class="fa-solid fa-display"></i></div>
+        <h4>Recovery Method</h4>
+        <p>Used the hosting provider's web-based VNC/console (accessible from the cPanel/hosting dashboard) — bypasses SSH entirely.</p>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Access the server via hosting provider web console</h4>
+          <p>Log in to your hosting control panel (e.g. Ashraaf IT World), navigate to your VPS, and open the <strong>VNC Console</strong> or <strong>Web Terminal</strong>. This gives you shell access regardless of firewall or SSH state.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Fix iptables to allow port 2222</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — via web console as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Insert rule at position 1 (before any DROP rules)</span>
+<span class="cmd">iptables</span> <span class="flag">-I INPUT 1</span> <span class="flag">-p</span> <span class="arg">tcp</span> <span class="flag">--dport</span> <span class="arg">2222</span> <span class="flag">-j</span> <span class="arg">ACCEPT</span>
+
+<span class="comment"># Verify the rule was added</span>
+<span class="cmd">iptables</span> <span class="flag">-L INPUT</span> <span class="flag">-n</span> <span class="flag">--line-numbers</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Fix SELinux to allow port 2222 for SSH</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Register port 2222 as a valid SSH port in SELinux policy</span>
+<span class="cmd">semanage port</span> <span class="flag">-a</span> <span class="flag">-t</span> <span class="arg">ssh_port_t</span> <span class="flag">-p</span> <span class="arg">tcp 2222</span>
+
+<span class="comment"># Confirm it was added</span>
+<span class="cmd">semanage port</span> <span class="flag">-l</span> | <span class="cmd">grep</span> <span class="arg">ssh</span>
+<span class="ok">ssh_port_t   tcp   22, 2222</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Restart sshd and test from your Mac</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">systemctl restart sshd</span>
+
+<span class="comment"># From your Mac:</span>
+<span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">root@vps01.example.net</span>
+<span class="ok"># Should connect successfully now</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Always have a backup access method:</strong> Before making SSH configuration changes, ensure you have at least one alternative way in — either a web console from your hosting panel, a secondary SSH session that stays open, or a VNC/KVM connection. Never make SSH changes from your only active session without a backup.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 4. IPTABLES -->
+  <section class="section" id="s4">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-fire"></i></div>
+      <div class="section-title-wrap">
+        <h2>iptables Firewall Configuration</h2>
+        <p>This server uses iptables directly — not firewalld</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Many CentOS/RHEL guides assume <code>firewalld</code> is active, but on this server it is not running. All firewall rules are managed via <code>iptables</code> directly. Using <code>firewall-cmd</code> will appear to succeed but make no actual difference.</p>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Check which firewall is active first:</strong>
+        <div class="code-block" style="margin-top: 10px;">
+          <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+          <pre><span class="cmd">systemctl status firewalld</span>
+<span class="hi">● firewalld.service - firewalld - dynamic firewall daemon
+   Loaded: ...
+   Active: inactive (dead)</span>   <span class="comment"># ← on this server</span>
+
+<span class="cmd">systemctl status iptables</span>
+<span class="ok">● iptables.service - IPv4 firewall with iptables
+   Active: active (exited)</span>   <span class="comment"># ← this one is running</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>View current iptables rules (with line numbers)</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">iptables</span> <span class="flag">-L INPUT</span> <span class="flag">-n</span> <span class="flag">--line-numbers</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Allow the new SSH port (insert at top to avoid DROP rules)</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># -I inserts at the top (before any DROP/REJECT rules)</span>
+<span class="cmd">iptables</span> <span class="flag">-I INPUT</span> <span class="flag">-p</span> <span class="arg">tcp</span> <span class="flag">--dport</span> <span class="arg">2222</span> <span class="flag">-j</span> <span class="arg">ACCEPT</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Save the rules so they survive a reboot</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">iptables-save</span> > <span class="arg">/etc/sysconfig/iptables</span>
+
+<span class="comment"># Verify the rule was saved</span>
+<span class="cmd">grep</span> <span class="arg">2222</span> /etc/sysconfig/iptables
+<span class="ok">-A INPUT -p tcp -m tcp --dport 2222 -j ACCEPT</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Difference between <code>-I</code> and <code>-A</code>:</strong> <code>-I</code> inserts a rule at the <em>top</em> of the chain (evaluated first). <code>-A</code> appends to the <em>bottom</em> (evaluated last). If your chain ends with a DROP policy, <code>-A</code> may never be reached. Always use <code>-I</code> when adding ACCEPT rules to ensure they are processed before any DROP rules.</div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>iptables -L INPUT -n --line-numbers</code></td><td>View current INPUT chain rules with line numbers</td></tr>
+          <tr><td><code>iptables -I INPUT -p tcp --dport PORT -j ACCEPT</code></td><td>Allow incoming TCP on a port (insert at top)</td></tr>
+          <tr><td><code>iptables -D INPUT LINE_NUMBER</code></td><td>Delete a rule by its line number</td></tr>
+          <tr><td><code>iptables-save > /etc/sysconfig/iptables</code></td><td>Persist rules across reboots (CentOS/RHEL)</td></tr>
+          <tr><td><code>iptables -F INPUT</code></td><td>Flush all INPUT rules (dangerous — use with caution)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 5. SELINUX -->
+  <section class="section" id="s5">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-shield-virus"></i></div>
+      <div class="section-title-wrap">
+        <h2>SELinux Configuration for Non-Standard SSH Port</h2>
+        <p>Why SELinux blocks sshd on non-default ports and how to fix it</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">SELinux (Security Enhanced Linux) enforces mandatory access controls on this server. By default, it only permits sshd to bind to port 22. Attempting to use any other port causes sshd to fail silently or with a policy violation error — even if the firewall allows the port.</p>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>How to tell if SELinux is the problem:</strong> If sshd fails to start or refuses to listen on the new port even after setting <code>Port 2222</code> in sshd_config, SELinux is almost certainly blocking it. Check: <code>ausearch -c sshd --raw | audit2why</code> or <code>grep sshd /var/log/audit/audit.log | grep denied</code></div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Check SELinux status</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">getenforce</span>
+<span class="ok">Enforcing</span>   <span class="comment"># SELinux is active and blocking policy violations</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>See which ports SELinux currently allows for SSH</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">semanage port</span> <span class="flag">-l</span> | <span class="cmd">grep</span> <span class="arg">ssh</span>
+<span class="out">ssh_port_t   tcp   </span><span class="hi">22</span>   <span class="comment"># only port 22 is allowed by default</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Add port 2222 to SELinux's allowed SSH ports</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">semanage port</span> <span class="flag">-a</span> <span class="flag">-t</span> <span class="arg">ssh_port_t</span> <span class="flag">-p</span> <span class="arg">tcp 2222</span>
+
+<span class="comment"># Verify it was added</span>
+<span class="cmd">semanage port</span> <span class="flag">-l</span> | <span class="cmd">grep</span> <span class="arg">ssh</span>
+<span class="ok">ssh_port_t   tcp   22, 2222</span>   <span class="comment"># ✓ both ports now allowed</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Do NOT disable SELinux:</strong> It is a critical security layer. The correct response is never <code>setenforce 0</code> for production. That disables all SELinux protections server-wide. Always use <code>semanage</code> to grant specific permissions instead.</div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>getenforce</code></td><td>Show current SELinux mode (Enforcing / Permissive / Disabled)</td></tr>
+          <tr><td><code>semanage port -l | grep ssh</code></td><td>List all ports allowed for SSH in SELinux policy</td></tr>
+          <tr><td><code>semanage port -a -t ssh_port_t -p tcp PORT</code></td><td>Add a new allowed SSH port</td></tr>
+          <tr><td><code>semanage port -d -t ssh_port_t -p tcp PORT</code></td><td>Remove an allowed SSH port</td></tr>
+          <tr><td><code>ausearch -c sshd --raw | audit2why</code></td><td>Diagnose SELinux denials related to sshd</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 6. NON-ROOT SSH USER -->
+  <section class="section" id="s6">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-user-plus"></i></div>
+      <div class="section-title-wrap">
+        <h2>Creating a Non-Root SSH User</h2>
+        <p>Never SSH directly as root — use a regular user with sudo access</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Direct root SSH access is a significant risk. If any attacker guesses the password, they have immediate, unlimited control. The best practice is to create a named user account, grant it sudo privileges, and disable direct root login over SSH.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Create the new user</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">adduser</span> <span class="arg">adminuser</span>
+
+<span class="comment"># On CentOS/RHEL, adduser does NOT set a password automatically</span>
+<span class="comment"># You must run passwd separately:</span>
+<span class="cmd">passwd</span> <span class="arg">adminuser</span>
+<span class="out">New password:
+Retype new password:
+</span><span class="ok">passwd: all authentication tokens updated successfully.</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Grant sudo access by adding to the wheel group</h4>
+          <p>On CentOS/RHEL, the sudo group is called <code>wheel</code> (not <code>sudo</code> as on Ubuntu/Debian).</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">usermod</span> <span class="flag">-aG</span> <span class="arg">wheel adminuser</span>
+
+<span class="comment"># Verify wheel group membership</span>
+<span class="cmd">groups</span> <span class="arg">adminuser</span>
+<span class="ok">adminuser : adminuser wheel</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Test the new user in a separate terminal</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — new terminal on your Mac</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># SSH in as adminuser</span>
+<span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">adminuser@vps01.example.net</span>
+
+<span class="comment"># Once connected, escalate to root</span>
+<span class="cmd">sudo su -</span>
+<span class="out">[sudo] password for adminuser:</span>
+<span class="ok">[root@vps01 ~]#</span>   <span class="comment"># ✓ full root access achieved</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Why <code>sudo su -</code> and not just <code>sudo command</code>?</strong> For most day-to-day admin tasks, using <code>sudo command</code> is preferred as it gives a minimal footprint (only elevated for one command). However, <code>sudo su -</code> gives you a full root shell when you need to run many root commands in sequence. The <code>-</code> ensures root's full environment is loaded. Both are fine — use what fits the task.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 7. DISABLE ROOT LOGIN -->
+  <section class="section" id="s7">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-ban"></i></div>
+      <div class="section-title-wrap">
+        <h2>Disabling Direct Root SSH Login</h2>
+        <p>The single most impactful SSH security setting</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Once you have a working non-root user (Section 6), disable root login over SSH. This makes brute-force attacks against <code>root</code> impossible — even if someone guesses the password, the login will be rejected outright.</p>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>Before disabling root login:</strong> Confirm in a separate terminal that you can <code>ssh -p 2222 adminuser@vps01.example.net</code> and then <code>sudo su -</code> successfully. Only proceed when this is verified and working. Otherwise you will permanently lock yourself out of the server.</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Edit sshd_config to set PermitRootLogin to no</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># One-liner that replaces any existing PermitRootLogin setting</span>
+<span class="cmd">sed</span> <span class="flag">-i</span> <span class="arg">'s/.*PermitRootLogin.*/PermitRootLogin no/'</span> /etc/ssh/sshd_config
+
+<span class="comment"># Verify the change</span>
+<span class="cmd">grep</span> <span class="arg">PermitRootLogin</span> /etc/ssh/sshd_config
+<span class="ok">PermitRootLogin no</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Restart sshd</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">systemctl restart sshd</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Test that root login is now rejected</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — from your Mac</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">root@vps01.example.net</span>
+<span class="hi">root@vps01.example.net: Permission denied (publickey,gssapi-keyex,gssapi-with-mic).</span>
+<span class="comment"># ✓ root login rejected — expected and correct</span>
+
+<span class="comment"># Your normal workflow now:</span>
+<span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">adminuser@vps01.example.net</span>
+<span class="cmd">sudo su -</span>   <span class="comment"># ← escalate when root access needed</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>PermitRootLogin Value</th><th>Behaviour</th><th>Recommendation</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>yes</code></td>
+            <td>Root can login with password or key</td>
+            <td><span class="badge-pill pill-red">Never use</span></td>
+          </tr>
+          <tr>
+            <td><code>prohibit-password</code></td>
+            <td>Root can login with SSH key only (no password)</td>
+            <td><span class="badge-pill pill-orange">Acceptable</span></td>
+          </tr>
+          <tr>
+            <td><code>no</code></td>
+            <td>Root SSH login completely disabled</td>
+            <td><span class="badge-pill pill-green">Recommended</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 8. RENAMING A USER -->
+  <section class="section" id="s8">
+    <div class="section-header">
+      <div class="section-icon icon-yellow"><i class="fa-solid fa-pen-to-square"></i></div>
+      <div class="section-title-wrap">
+        <h2>Renaming an Active SSH User</h2>
+        <p>Why usermod fails when the user is logged in — and how to work around it</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">For additional obscurity, it is useful to rename the SSH user to something less common than a first name. However, renaming a user who is currently logged in is blocked by the system — Linux won't let you modify files for a user with active processes.</p>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>The error you will see if you try wrong:</strong>
+        <div class="code-block" style="margin-top: 10px;">
+          <pre><span class="cmd">usermod</span> <span class="flag">-l</span> <span class="arg">adminops adminuser</span>
+<span class="hi">usermod: user adminuser is currently used by process 1253303</span></pre>
+        </div>
+        This happens when you are SSH'd in as <code>adminuser</code> and try to rename <code>adminuser</code> in the same session, even via <code>sudo su -</code>. The original SSH session is still tied to the <code>adminuser</code> user.
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Open a separate terminal and SSH directly as root</h4>
+          <p>This gives you a root session that is NOT associated with the adminuser user process.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — NEW terminal tab on Mac</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Temporarily re-enable root login if PermitRootLogin is no:</span>
+<span class="comment"># (from the active adminuser session via sudo)</span>
+<span class="cmd">sudo sed</span> <span class="flag">-i</span> <span class="arg">'s/PermitRootLogin no/PermitRootLogin yes/'</span> /etc/ssh/sshd_config
+<span class="cmd">sudo systemctl restart sshd</span>
+
+<span class="comment"># Then from a NEW terminal:</span>
+<span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">root@vps01.example.net</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Rename the username and home directory</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — root session (NOT via adminuser sudo)</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Step 1: rename the login name</span>
+<span class="cmd">usermod</span> <span class="flag">-l</span> <span class="arg">adminops adminuser</span>
+
+<span class="comment"># Step 2: move and rename the home directory</span>
+<span class="cmd">usermod</span> <span class="flag">-d</span> <span class="arg">/home/adminops</span> <span class="flag">-m</span> <span class="arg">adminops</span>
+
+<span class="comment"># Step 3: rename the primary group to match</span>
+<span class="cmd">groupmod</span> <span class="flag">-n</span> <span class="arg">adminops adminuser</span>
+
+<span class="comment"># Step 4: verify everything looks correct</span>
+<span class="cmd">id</span> <span class="arg">adminops</span>
+<span class="ok">uid=1002(adminops) gid=1002(adminops) groups=1002(adminops),10(wheel)</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Test the renamed user from a new Mac terminal</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — Mac terminal</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">adminops@vps01.example.net</span>
+<span class="ok">[adminops@vps01 ~]$</span>   <span class="comment"># ✓ login successful with new name</span>
+
+<span class="cmd">sudo su -</span>
+<span class="ok">[root@vps01 ~]#</span>   <span class="comment"># ✓ sudo still works</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Re-disable root SSH login</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — from root or via sudo</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sed</span> <span class="flag">-i</span> <span class="arg">'s/.*PermitRootLogin.*/PermitRootLogin no/'</span> /etc/ssh/sshd_config
+<span class="cmd">systemctl restart sshd</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Alternative: rename from the hosting web console</strong> — If re-enabling root login feels risky, use the hosting provider's web console (VNC/browser terminal) instead. This gives you a root terminal that is completely independent of any SSH user session.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 9. FAIL2BAN -->
+  <section class="section" id="s9">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-robot"></i></div>
+      <div class="section-title-wrap">
+        <h2>Installing and Configuring fail2ban</h2>
+        <p>Automatically block IPs after repeated failed login attempts</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;"><strong>fail2ban</strong> monitors auth logs and uses iptables to automatically ban IP addresses that show brute-force behaviour. After 5 failed attempts in 10 minutes, the offending IP is blocked for 24 hours. It is your automated first responder against SSH attacks.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Install fail2ban via EPEL</h4>
+          <p>fail2ban is not in the default CentOS repos — it lives in the EPEL (Extra Packages for Enterprise Linux) repository.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Step 1: enable the EPEL repository</span>
+<span class="cmd">yum install</span> <span class="flag">-y</span> <span class="arg">epel-release</span>
+
+<span class="comment"># Step 2: install fail2ban</span>
+<span class="cmd">yum install</span> <span class="flag">-y</span> <span class="arg">fail2ban</span>
+
+<span class="comment"># Verify installation</span>
+<span class="cmd">fail2ban-client</span> <span class="flag">--version</span>
+<span class="ok">Fail2Ban v0.11.2</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Create a local jail configuration for SSH</h4>
+          <p>Always create a <code>jail.local</code> file rather than editing <code>jail.conf</code> directly — local overrides survive package updates.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">cat</span> > /etc/fail2ban/jail.local &lt;&lt; <span class="arg">'EOF'</span>
+<span class="ok">[DEFAULT]
+# Ban IPs for 24 hours (86400 seconds)
+bantime  = 86400
+# Look back 10 minutes for failures
+findtime = 600
+# Allow 5 failures before banning
+maxretry = 5
+# Use iptables (matches this server's firewall)
+banaction = iptables-multiport
+
+[sshd]
+enabled  = true
+port     = 2222
+logpath  = /var/log/secure
+maxretry = 5
+EOF</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Enable and start fail2ban</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Enable on boot and start now</span>
+<span class="cmd">systemctl enable</span> <span class="arg">fail2ban</span>
+<span class="cmd">systemctl start</span> <span class="arg">fail2ban</span>
+
+<span class="comment"># Verify it is protecting SSH</span>
+<span class="cmd">fail2ban-client status sshd</span>
+<span class="ok">Status for the jail: sshd
+|- Filter
+|  |- Currently failed: 2
+|  |- Total failed:     740
+|  `- Journal matches:  _SYSTEMD_UNIT=sshd.service + _COMM=sshd
+`- Actions
+   |- Currently banned: 14
+   |- Total banned:     28
+   `- Banned IP list: 185.234.218.97 45.142.212.100 ...</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="font-weight:600; margin-bottom:12px;">Essential fail2ban management commands:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>fail2ban-client status sshd</code></td><td>See current bans and stats for SSH jail</td></tr>
+          <tr><td><code>fail2ban-client status</code></td><td>Overview of all active jails</td></tr>
+          <tr><td><code>fail2ban-client set sshd unbanip 1.2.3.4</code></td><td>Unban a specific IP (e.g., your own by mistake)</td></tr>
+          <tr><td><code>fail2ban-client set sshd banip 5.6.7.8</code></td><td>Manually ban an IP immediately</td></tr>
+          <tr><td><code>tail -f /var/log/fail2ban.log</code></td><td>Watch fail2ban activity in real time</td></tr>
+          <tr><td><code>fail2ban-client reload</code></td><td>Reload config after making changes to jail.local</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Watch out — you can ban yourself:</strong> If you mistype your password 5 times from your Mac, your home IP will be banned for 24 hours. Unban yourself with: <code>fail2ban-client set sshd unbanip YOUR_IP</code>. To find your IP from the Mac: <code>curl -4 ifconfig.me</code>. Consider whitelisting your home IP in <code>jail.local</code> using <code>ignoreip = 127.0.0.1/8 YOUR_HOME_IP</code>.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 10. SSH KEY AUTH -->
+  <section class="section" id="s10">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-key"></i></div>
+      <div class="section-title-wrap">
+        <h2>SSH Key Authentication</h2>
+        <p>The strongest form of SSH authentication — eliminates password brute force entirely</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">With SSH key authentication, a cryptographic key pair replaces passwords entirely. Even if someone knows your username and port, they cannot log in without possessing your private key file. Combined with <code>PasswordAuthentication no</code>, brute-force attacks become mathematically impossible.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Generate an SSH key pair on your Mac</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on your Mac</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Generate an Ed25519 key (modern, fast, secure)</span>
+<span class="cmd">ssh-keygen</span> <span class="flag">-t</span> <span class="arg">ed25519</span> <span class="flag">-C</span> <span class="arg">"mac@psphub-server"</span>
+
+<span class="out">Generating public/private ed25519 key pair.
+Enter file in which to save the key (/Users/mac/.ssh/id_ed25519):
+Enter passphrase (empty for no passphrase): </span><span class="comment">[enter a passphrase for extra protection]</span>
+<span class="ok">Your identification has been saved in /Users/mac/.ssh/id_ed25519
+Your public key has been saved in /Users/mac/.ssh/id_ed25519.pub</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Copy your public key to the server</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on your Mac</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ssh-copy-id</span> <span class="flag">-p 2222</span> <span class="arg">adminops@vps01.example.net</span>
+
+<span class="comment"># Or manually if ssh-copy-id isn't available:</span>
+<span class="cmd">cat</span> <span class="arg">~/.ssh/id_ed25519.pub</span> | <span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">adminops@vps01.example.net</span> \
+  <span class="arg">"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Test passwordless login</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on your Mac</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ssh</span> <span class="flag">-p 2222</span> <span class="arg">adminops@vps01.example.net</span>
+<span class="comment"># Should connect without asking for a password</span>
+<span class="ok">[adminops@vps01 ~]$</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Disable password authentication entirely (optional hardening)</h4>
+          <p>Only do this after confirming SSH key login works perfectly.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on the server as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">sed</span> <span class="flag">-i</span> <span class="arg">'s/.*PasswordAuthentication.*/PasswordAuthentication no/'</span> /etc/ssh/sshd_config
+<span class="cmd">systemctl restart sshd</span>
+
+<span class="comment"># Now ONLY SSH key holders can log in — brute force is impossible</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Store your private key safely:</strong> If you lose <code>~/.ssh/id_ed25519</code> (your private key) and password authentication is disabled, you will be permanently locked out. Keep a backup of the key in a secure, encrypted location (e.g. your password manager or an encrypted USB drive). Also keep your hosting provider's web console access working as a recovery option.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 11. ROTATING SECRETS -->
+  <section class="section" id="s11">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-rotate"></i></div>
+      <div class="section-title-wrap">
+        <h2>Rotating Exposed Secrets</h2>
+        <p>Tokens and secrets visible in shell history or terminal output must be rotated immediately</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">During the session, a <code>CRON_SECRET_TOKEN</code> was visible in terminal output and shell history. Any secret that appears in a terminal (even a private one) should be treated as potentially compromised and rotated. Shell history can be captured by terminal recording tools, screenshots, and session logs.</p>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>The exposed token:</strong> The <code>CRON_SECRET_TOKEN</code> value was visible in command-line output. If this token is discovered, an attacker could call the cron reconciliation endpoint arbitrarily — triggering unintended financial data processing. Rotate it immediately.</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Generate a new cryptographically random token</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on the server as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">openssl rand</span> <span class="flag">-hex</span> <span class="arg">32</span>
+<span class="ok">a9f3b2c1e4d7a6b5c8d1e3f2a4b7c0d9e2f1a3b4c5d6e7f8a9b0c1d2e3f4a5</span>
+<span class="comment"># Copy this value — it will be your new token</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Update the .env file in the Laravel application</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — navigate to the Laravel app directory</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">cd</span> <span class="arg">/path/to/your/laravel/app</span>
+
+<span class="comment"># Edit the .env file directly</span>
+<span class="cmd">vi</span> <span class="arg">.env</span>
+
+<span class="comment"># Find and replace the line:</span>
+<span class="out">CRON_SECRET_TOKEN=72cd44dd7b8c1a2dbbfe5cba9a3c084d</span>
+
+<span class="comment"># Change it to your new token:</span>
+<span class="ok">CRON_SECRET_TOKEN=a9f3b2c1e4d7a6b5c8d1e3f2a4b7c0d9e2f1a3b4c5d6e7f8a9b0c1d2e3f4a5</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Clear Laravel's config cache so it picks up the new value</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">php artisan config:clear</span>
+<span class="ok">Configuration cache cleared successfully.</span>
+
+<span class="comment"># Optionally rebuild the cache for better performance</span>
+<span class="cmd">php artisan config:cache</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Update any cron jobs or scripts that use the old token</h4>
+          <p>Search for the old token in any automation scripts, scheduled job definitions, or monitoring tools and replace it with the new value.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — search for old token usage</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Check crontab entries</span>
+<span class="cmd">crontab</span> <span class="flag">-l</span>
+
+<span class="comment"># Search all project files (from Mac) for the old token string</span>
+<span class="cmd">grep</span> <span class="flag">-r</span> <span class="arg">"72cd44dd"</span> /path/to/project <span class="flag">--include</span> <span class="arg">"*.sh"</span> <span class="flag">--include</span> <span class="arg">"*.env*"</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Clear shell history containing the exposed token</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — on the server</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Clear bash history for the current user</span>
+<span class="cmd">history</span> <span class="flag">-c</span> &amp;&amp; <span class="cmd">history</span> <span class="flag">-w</span>
+
+<span class="comment"># Also clear root's history file if needed</span>
+<span class="cmd">cat</span> /dev/null > ~/.bash_history</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>General secret hygiene rules:</strong>
+        <ul style="margin-top:8px; padding-left:20px; line-height:2.2;">
+          <li>Never pass secrets as command-line arguments if avoidable — they appear in process listings (<code>ps aux</code>)</li>
+          <li>Never commit <code>.env</code> files to Git — add <code>.env</code> to <code>.gitignore</code></li>
+          <li>Use environment variables or a secrets manager (e.g. AWS Secrets Manager, Laravel Vault) for production</li>
+          <li>Rotate all secrets after any suspected exposure — it takes minutes and eliminates the risk</li>
+          <li>Treat any secret visible in a shared terminal session as compromised</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 12. HARDENING CHECKLIST -->
+  <section class="section" id="s12">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-list-check"></i></div>
+      <div class="section-title-wrap">
+        <h2>Complete SSH Hardening Checklist</h2>
+        <p>Track progress through every security improvement — current status for this server</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">This checklist covers all hardening steps performed and planned for <code>vps01.example.net</code>. Work through these in order — each layer adds meaningfully to the overall security posture.</p>
+
+    <div class="checklist">
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Detected active brute-force attack</strong> — identified 740+ failed login attempts in <code>/var/log/secure</code></span>
+        <span class="step-label"><span class="badge-pill pill-green">Done</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Changed SSH port</strong> from 22 → 2222 in <code>/etc/ssh/sshd_config</code></span>
+        <span class="step-label"><span class="badge-pill pill-green">Done</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Opened firewall (iptables)</strong> — added ACCEPT rule for TCP port 2222, persisted with <code>iptables-save</code></span>
+        <span class="step-label"><span class="badge-pill pill-green">Done</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Configured SELinux</strong> — registered port 2222 as a valid <code>ssh_port_t</code> using <code>semanage</code></span>
+        <span class="step-label"><span class="badge-pill pill-green">Done</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Created non-root SSH user</strong> (<code>adminuser</code>) with <code>wheel</code> group membership for sudo access</span>
+        <span class="step-label"><span class="badge-pill pill-green">Done</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
+        <span><strong>Disabled root login</strong> — set <code>PermitRootLogin no</code> in sshd_config and restarted sshd</span>
+        <span class="step-label"><span class="badge-pill pill-green">Done</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-warn"><i class="fa-solid fa-clock"></i></div>
+        <span><strong>Rename SSH user</strong> from <code>adminuser</code> → <code>adminops</code> — requires separate root terminal (see Section 8)</span>
+        <span class="step-label"><span class="badge-pill pill-orange">Pending</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-warn"><i class="fa-solid fa-clock"></i></div>
+        <span><strong>Install and configure fail2ban</strong> — auto-ban IPs after 5 failures on port 2222 (see Section 9)</span>
+        <span class="step-label"><span class="badge-pill pill-orange">Pending</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-warn"><i class="fa-solid fa-clock"></i></div>
+        <span><strong>Rotate exposed CRON_SECRET_TOKEN</strong> — was visible in terminal history, needs replacement in <code>.env</code> (see Section 11)</span>
+        <span class="step-label"><span class="badge-pill pill-orange">Pending</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-todo"><i class="fa-solid fa-arrow-right"></i></div>
+        <span><strong>Set up SSH key authentication</strong> — generate key pair on Mac, copy to server, disable password auth (see Section 10)</span>
+        <span class="step-label"><span class="badge-pill pill-blue">Recommended</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-todo"><i class="fa-solid fa-arrow-right"></i></div>
+        <span><strong>Whitelist your home IP in fail2ban</strong> — add <code>ignoreip</code> to <code>jail.local</code> to prevent accidentally banning yourself</span>
+        <span class="step-label"><span class="badge-pill pill-blue">Recommended</span></span>
+      </div>
+      <div class="check-item">
+        <div class="icon-status status-todo"><i class="fa-solid fa-arrow-right"></i></div>
+        <span><strong>Set up log monitoring/alerting</strong> — tools like Logwatch or Logcheck can email you a daily summary of suspicious activity</span>
+        <span class="step-label"><span class="badge-pill pill-blue">Optional</span></span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="font-weight:600; margin-bottom:14px;">Security impact of each layer — from least to most impactful:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Security Measure</th><th>Stops</th><th>Difficulty</th><th>Impact</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Non-standard SSH port</td>
+            <td>All automated bots scanning port 22</td>
+            <td><span class="badge-pill pill-green">Easy</span></td>
+            <td><span class="badge-pill pill-green">High (reduces noise by ~99%)</span></td>
+          </tr>
+          <tr>
+            <td><code>PermitRootLogin no</code></td>
+            <td>Direct root brute force — most targeted account</td>
+            <td><span class="badge-pill pill-green">Easy</span></td>
+            <td><span class="badge-pill pill-green">High</span></td>
+          </tr>
+          <tr>
+            <td>fail2ban</td>
+            <td>Persistent attackers who discover the new port</td>
+            <td><span class="badge-pill pill-blue">Moderate</span></td>
+            <td><span class="badge-pill pill-green">High</span></td>
+          </tr>
+          <tr>
+            <td>SSH key authentication</td>
+            <td>Password brute force entirely — even with unlimited attempts</td>
+            <td><span class="badge-pill pill-blue">Moderate</span></td>
+            <td><span class="badge-pill pill-purple">Maximum</span></td>
+          </tr>
+          <tr>
+            <td><code>PasswordAuthentication no</code></td>
+            <td>Any login without a valid key — even with correct password</td>
+            <td><span class="badge-pill pill-blue">Moderate</span></td>
+            <td><span class="badge-pill pill-purple">Maximum</span></td>
+          </tr>
+          <tr>
+            <td>Username obscurity</td>
+            <td>Targeted guessing of common usernames (root, admin, ubuntu)</td>
+            <td><span class="badge-pill pill-green">Easy</span></td>
+            <td><span class="badge-pill pill-orange">Low–Medium</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-shield-halved"></i>
+      <div>
+        <strong>Defence-in-depth principle:</strong> No single measure is enough. The goal is to make each layer independent — if one fails, the others still protect you. Port change kills automated scanning. Disabling root login removes the most targeted account. fail2ban blocks persistent attackers. SSH keys make brute force mathematically infeasible. Together, these four measures reduce your attack surface to near zero.
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════ FOOTER -->
+<footer>
+  <p>SSH Security Hardening Guide &nbsp;·&nbsp; <span>vps01.example.net</span> &nbsp;·&nbsp; Generated April 2026</p>
+  <p style="margin-top:6px; font-size:11px;">Built with GitHub Copilot — for educational and operational reference</p>
+</footer>
+
+<script src="../assets/private-values-loader.js" data-secret-src="../secrets/private-values.json"></script>
+<script src="../assets/theme-toggle.js"></script>
+</body>
+</html>

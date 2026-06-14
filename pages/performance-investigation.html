@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Live Server Diagnostics — Performance Investigation Field Guide</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #181c27;
+      --card:      #1e2336;
+      --border:    #2a3050;
+      --accent:    #4f8ef7;
+      --accent2:   #7c5cfc;
+      --green:     #3dd68c;
+      --red:       #f56565;
+      --orange:    #f6ad55;
+      --yellow:    #f6e05e;
+      --text:      #e2e8f0;
+      --muted:     #7a869a;
+      --code-bg:   #12151f;
+      --radius:    12px;
+      --radius-sm: 7px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #141828 0%, #1a2040 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 56px 24px 48px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(79,142,247,.12);
+      border: 1px solid rgba(79,142,247,.3);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      font-size: clamp(26px, 5vw, 42px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      background: linear-gradient(135deg, #e2e8f0, #7c9ec8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 600px;
+      margin: 0 auto 28px;
+    }
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta-pill i { color: var(--accent); font-size: 11px; }
+
+    /* ── LAYOUT ─────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      max-width: 1200px;
+      margin: 0 auto;
+      gap: 0;
+    }
+
+    /* ── SIDEBAR ────────────────────────────────── */
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 32px 0 32px 24px;
+      border-right: 1px solid var(--border);
+    }
+    aside::-webkit-scrollbar { width: 4px; }
+    aside::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding-left: 4px;
+    }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .15s;
+      margin-bottom: 2px;
+    }
+    .nav-link:hover, .nav-link.active {
+      background: rgba(79,142,247,.1);
+      color: var(--accent);
+    }
+    .nav-link i { width: 16px; text-align: center; font-size: 12px; }
+    .nav-num {
+      margin-left: auto;
+      background: var(--border);
+      color: var(--muted);
+      font-size: 10px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── MAIN ───────────────────────────────────── */
+    main {
+      padding: 40px 40px 80px;
+      min-width: 0;
+    }
+
+    /* ── SECTION ────────────────────────────────── */
+    .section {
+      margin-bottom: 64px;
+      scroll-margin-top: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      flex-shrink: 0;
+    }
+    .icon-blue   { background: rgba(79,142,247,.15); color: var(--accent); }
+    .icon-purple { background: rgba(124,92,252,.15); color: var(--accent2); }
+    .icon-green  { background: rgba(61,214,140,.15); color: var(--green); }
+    .icon-red    { background: rgba(245,101,101,.15); color: var(--red); }
+    .icon-orange { background: rgba(246,173,85,.15); color: var(--orange); }
+    .icon-yellow { background: rgba(246,224,94,.15); color: var(--yellow); }
+
+    .section-title-wrap h2 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      margin-bottom: 3px;
+    }
+    .section-title-wrap p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    /* ── STEP / CALLOUT ─────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 16px; }
+    .step {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .step-num {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: rgba(79,142,247,.15);
+      border: 1px solid rgba(79,142,247,.3);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .step-body h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .step-body p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+
+    /* ── CODE BLOCK ─────────────────────────────── */
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: rgba(255,255,255,.03);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .code-bar .lang { display: flex; align-items: center; gap: 6px; }
+    .code-bar .lang i { color: var(--accent); }
+    .code-bar .dots { display: flex; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+    pre {
+      padding: 16px 18px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.65;
+      overflow-x: auto;
+      color: #c9d1e0;
+    }
+    pre .cmd   { color: #79c0ff; }
+    pre .flag  { color: #d2a8ff; }
+    pre .arg   { color: #a8d8a8; }
+    pre .out   { color: var(--muted); }
+    pre .hi    { color: var(--red); font-weight: 600; }
+    pre .ok    { color: var(--green); }
+    pre .warn  { color: var(--orange); font-weight: 600; }
+    pre .comment { color: #4a5568; font-style: italic; }
+
+    /* ── INFO CARDS ─────────────────────────────── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 16px 0; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .card-icon { font-size: 20px; margin-bottom: 10px; }
+    .card h4 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+    .card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── CALLOUTS ───────────────────────────────── */
+    .callout {
+      display: flex;
+      gap: 14px;
+      padding: 16px 18px;
+      border-radius: var(--radius-sm);
+      margin: 14px 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .callout i { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+    .callout-tip    { background: rgba(61,214,140,.08);  border: 1px solid rgba(61,214,140,.2);  color: #a0f0cc; }
+    .callout-tip i  { color: var(--green); }
+    .callout-warn   { background: rgba(246,173,85,.08);  border: 1px solid rgba(246,173,85,.2);  color: #fbd38d; }
+    .callout-warn i { color: var(--orange); }
+    .callout-danger { background: rgba(245,101,101,.08); border: 1px solid rgba(245,101,101,.2); color: #fca5a5; }
+    .callout-danger i { color: var(--red); }
+    .callout-info   { background: rgba(79,142,247,.08);  border: 1px solid rgba(79,142,247,.2);  color: #93c5fd; }
+    .callout-info i { color: var(--accent); }
+
+    /* ── TABLE ──────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin: 12px 0; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 11px 16px;
+      border-bottom: 1px solid rgba(42,48,80,.5);
+      color: var(--text);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+    .badge-pill {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .pill-red    { background: rgba(245,101,101,.15); color: #fca5a5; }
+    .pill-orange { background: rgba(246,173,85,.15);  color: #fbd38d; }
+    .pill-green  { background: rgba(61,214,140,.15);  color: #6ee7b7; }
+    .pill-blue   { background: rgba(79,142,247,.15);  color: #93c5fd; }
+    .pill-purple { background: rgba(124,92,252,.15);  color: #c4b5fd; }
+
+    /* ── DIVIDER ────────────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+    /* ── INLINE CODE ────────────────────────────── */
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #93c5fd;
+    }
+
+    /* ── TIMELINE ───────────────────────────────── */
+    .timeline { display: flex; flex-direction: column; gap: 0; margin: 16px 0; }
+    .tl-item {
+      display: grid;
+      grid-template-columns: 90px 18px 1fr;
+      gap: 0 16px;
+      align-items: flex-start;
+      padding-bottom: 20px;
+    }
+    .tl-time {
+      text-align: right;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      padding-top: 3px;
+    }
+    .tl-dot-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .tl-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .tl-dot-red    { background: var(--red);    border-color: var(--red); }
+    .tl-dot-orange { background: var(--orange); border-color: var(--orange); }
+    .tl-dot-green  { background: var(--green);  border-color: var(--green); }
+    .tl-dot-blue   { background: var(--accent); border-color: var(--accent); }
+    .tl-line {
+      width: 2px;
+      flex: 1;
+      background: var(--border);
+      margin-top: 4px;
+      min-height: 20px;
+    }
+    .tl-body h4 { font-size: 13px; font-weight: 600; margin-bottom: 4px; padding-top: 2px; }
+    .tl-body p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+    /* ── FOOTER ─────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 32px 24px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    footer span { color: var(--accent); }
+
+    /* ── RESPONSIVE ─────────────────────────────── */
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; }
+      aside { display: none; }
+      main { padding: 24px 18px 60px; }
+    }
+  </style>
+  <link rel="stylesheet" href="../assets/theme.css" />
+  <script src="../assets/theme-init.js"></script>
+</head>
+<body>
+
+  <a href="../index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i> Home</a>  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle Theme"></button>
+
+<!-- ═══════════════════════════════════════════ HEADER -->
+<header>
+  <div class="badge"><i class="fa-solid fa-stethoscope"></i> Live Server Diagnostics</div>
+  <h1>Performance Investigation<br>Field Guide</h1>
+  <p>A real-world, step-by-step walkthrough of a live server slowness investigation — from first alert to root cause identification, covering cron auditing, RAM diagnostics, disk I/O analysis, and performance monitoring.</p>
+  <div class="meta-pills">
+    <span class="meta-pill"><i class="fa-brands fa-centos"></i> CentOS / RHEL 8</span>
+    <span class="meta-pill"><i class="fa-solid fa-globe"></i> cPanel Managed</span>
+    <span class="meta-pill"><i class="fa-solid fa-server"></i> vps01.example.net</span>
+    <span class="meta-pill"><i class="fa-solid fa-calendar"></i> April 2, 2026</span>
+    <span class="meta-pill"><i class="fa-solid fa-bug"></i> Root Cause Identified</span>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- ═══════════════════════════════════════════ SIDEBAR -->
+<aside>
+  <div style="padding: 12px 0 20px 4px;">
+    <p class="sidebar-label">Contents</p>
+    <a href="#s1"  class="nav-link"><i class="fa-solid fa-circle-exclamation"></i> The Incident <span class="nav-num">1</span></a>
+    <a href="#s2"  class="nav-link"><i class="fa-solid fa-magnifying-glass"></i> First Diagnostics <span class="nav-num">2</span></a>
+    <a href="#s3"  class="nav-link"><i class="fa-solid fa-chart-line"></i> Deep Dive Checks <span class="nav-num">3</span></a>
+    <a href="#s4"  class="nav-link"><i class="fa-solid fa-shield-halved"></i> Attack vs Cron <span class="nav-num">4</span></a>
+    <a href="#s5"  class="nav-link"><i class="fa-solid fa-clock"></i> Cron Job Audit <span class="nav-num">5</span></a>
+    <a href="#s6"  class="nav-link"><i class="fa-solid fa-bullseye"></i> Root Cause Found <span class="nav-num">6</span></a>
+    <a href="#s7"  class="nav-link"><i class="fa-solid fa-gauge-high"></i> Live Health Check <span class="nav-num">7</span></a>
+    <a href="#s8"  class="nav-link"><i class="fa-solid fa-microchip"></i> RAM &amp; CPU Monitoring <span class="nav-num">8</span></a>
+    <a href="#s9"  class="nav-link"><i class="fa-solid fa-hard-drive"></i> Disk I/O Analysis <span class="nav-num">9</span></a>
+    <a href="#s10" class="nav-link"><i class="fa-solid fa-network-wired"></i> Network Connections <span class="nav-num">10</span></a>
+    <a href="#s11" class="nav-link"><i class="fa-solid fa-file-lines"></i> Full Incident Report <span class="nav-num">11</span></a>
+    <a href="#s12" class="nav-link"><i class="fa-solid fa-wrench"></i> Fixes &amp; Actions <span class="nav-num">12</span></a>
+    <a href="#s13" class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Incident Timeline <span class="nav-num">13</span></a>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════ MAIN -->
+<main>
+
+  <!-- ─────────────────────── 1. THE INCIDENT -->
+  <section class="section" id="s1">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-circle-exclamation"></i></div>
+      <div class="section-title-wrap">
+        <h2>The Incident — April 2, 2026</h2>
+        <p>Users reporting slowness — starting the investigation</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">At approximately <strong style="color:var(--text);">09:42 WAT</strong>, users of the websites hosted on <code>vps01.example.net</code> reported the server feeling slow. This guide documents the complete diagnostic process that followed — from initial check to full root cause identification.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:var(--accent);"><i class="fa-solid fa-server"></i></div>
+        <h4>Server Details</h4>
+        <p>vps01.example.net<br>IP: 203.0.113.10<br>CentOS/RHEL 8 — cPanel managed<br>4 CPU cores, 5.8Gi RAM</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--orange);"><i class="fa-solid fa-globe"></i></div>
+        <h4>Hosted Sites</h4>
+        <p>portal-app.example.net<br>regional-app.example.net<br>service-app.example.net<br>records-app.example.net<br>All under user: <code>appuser</code></p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--red);"><i class="fa-solid fa-bug"></i></div>
+        <h4>Initial Symptom</h4>
+        <p>Users reporting slowness at ~09:42. Server not down — responding but sluggish. Load spike suspected.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--green);"><i class="fa-solid fa-circle-check"></i></div>
+        <h4>Outcome</h4>
+        <p>Root cause confirmed: cPanel cron job <code>clean_user_php_sessions</code> hammering a slow /tmp filesystem. No attack — fully internal.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>What this guide teaches:</strong> How to diagnose a live Linux server performance incident systematically — reading process tables, interpreting load averages, analysing disk I/O, auditing cron jobs, checking network connections, and distinguishing an internal cron problem from an external attack.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 2. FIRST DIAGNOSTICS -->
+  <section class="section" id="s2">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-magnifying-glass"></i></div>
+      <div class="section-title-wrap">
+        <h2>First Diagnostic Round</h2>
+        <p>The five commands to run immediately when slowness is reported</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">SSH in as root and run these in sequence. Each answers a specific question about the server's health.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Check uptime and load average</h4>
+          <p>The load average tells you instantly whether the server is overwhelmed. Compare with <code>nproc</code> (number of CPU cores).</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">uptime</span>
+<span class="out"> 09:42:17 up 8 days, 7:15, 1 user, </span><span class="hi">load average: 7.20, 5.80, 6.31</span>
+
+<span class="cmd">nproc</span>
+<span class="out">4</span>   <span class="comment"># 4 cores — load of 7.20 means server is 1.8× overloaded</span></pre>
+          </div>
+          <div class="callout callout-danger" style="margin-top:10px;">
+            <i class="fa-solid fa-skull-crossbones"></i>
+            <div><strong>Rule:</strong> If load average &gt; number of CPU cores, the server is overloaded. Load 7.20 on a 4-core server = 180% over capacity. This instantly confirms performance problems are real.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Check RAM and swap</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">free</span> <span class="flag">-h</span>
+<span class="out">              total    used    free   shared  buff/cache  available
+Mem:          5.8Gi   </span><span class="warn">4.3Gi</span><span class="out">   278Mi    9.0Mi       1.2Gi     1.2Gi
+Swap:         2.0Gi   </span><span class="warn">421Mi</span><span class="out">   1.6Gi</span></pre>
+          </div>
+          <p>Only 278Mi free RAM — tight but not critical. 421Mi of swap in use means memory pressure existed recently. The server has been using swap as a relief valve.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Check disk space</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">df</span> <span class="flag">-h</span>
+<span class="out">Filesystem   Size  Used  Avail Use%  Mounted on
+/dev/vda2    118G   30G   83G  27%   /
+/dev/loop0   3.9G   56K  3.7G   1%  </span><span class="warn">/tmp</span>   <span class="comment"># loop-mounted — suspect</span></pre>
+          </div>
+          <p>Main disk fine at 27%. But <code>/tmp</code> is mounted on a <strong>loop0 device</strong> (a file pretending to be a disk) — this will become significant later.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Find what's consuming resources (top processes)</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ps aux</span> <span class="flag">--sort=-%cpu</span> | <span class="cmd">head</span> <span class="arg">-15</span>
+<span class="out">USER     PID  %CPU %MEM  STAT COMMAND
+appuser  ...  25.0  0.9   S   </span><span class="hi">php-cgi portal-app.example.net</span>
+<span class="out">appuser  ...  24.0  0.9   S   </span><span class="hi">php-cgi portal-app.example.net</span>
+<span class="out">appuser  ...   0.5  0.9   S   php-cgi service-app.example.net
+... (43 php-cgi processes total)</span></pre>
+          </div>
+          <div class="callout callout-danger" style="margin-top:10px;">
+            <i class="fa-solid fa-skull-crossbones"></i>
+            <div><strong>PHP-CGI Avalanche identified:</strong> 43 simultaneous PHP-CGI workers — 36 of them for <code>portal-app.example.net</code>. All in <code>S</code> (sleeping/waiting) state. They are not computing — they are stalled waiting on something.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Count PHP workers specifically</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ps aux</span> | <span class="cmd">grep</span> <span class="arg">php-cgi</span> | <span class="cmd">grep</span> <span class="flag">-v</span> <span class="arg">grep</span> | <span class="cmd">wc</span> <span class="flag">-l</span>
+<span class="hi">43</span>   <span class="comment"># normal is &lt;10 for this server</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600; margin-bottom:10px; font-size:14px;">Summary of first diagnostic findings:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Check</th><th>Found</th><th>Normal</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Load average (1 min)</td><td>7.20</td><td>&lt; 4.0 (4 cores)</td><td><span class="badge-pill pill-red">Critical</span></td></tr>
+          <tr><td>Free RAM</td><td>278Mi</td><td>&gt; 500Mi</td><td><span class="badge-pill pill-orange">Warning</span></td></tr>
+          <tr><td>Swap used</td><td>421Mi</td><td>0–100Mi</td><td><span class="badge-pill pill-orange">Warning</span></td></tr>
+          <tr><td>PHP-CGI workers</td><td>43</td><td>&lt; 10</td><td><span class="badge-pill pill-red">Critical</span></td></tr>
+          <tr><td>Disk space</td><td>27%</td><td>&lt; 85%</td><td><span class="badge-pill pill-green">OK</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 3. DEEP DIVE CHECKS -->
+  <section class="section" id="s3">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-chart-line"></i></div>
+      <div class="section-title-wrap">
+        <h2>Deep Dive — Second Diagnostic Round</h2>
+        <p>vmstat, iostat, and network checks — 8 minutes after the first check</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">By 09:50 the load had already dropped to 0.21 — the spike was short-lived and self-resolving. The second round focused on understanding <em>what happened</em> and why the I/O latency was so high.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>vmstat — memory, swap, and I/O wait</h4>
+          <p>Run <code>vmstat 1 10</code> to get 10 samples one second apart. Key columns to watch:</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">vmstat</span> <span class="arg">1 10</span>
+<span class="out">procs ----memory---- ---swap-- --io-- --cpu--
+ r  b   swpd   free   si   so    bi    bo   wa
+ 0  0 421504 1.2Gi    0    1    18    20    1
+ 0  0 421504 1.2Gi    0    0     0    44    1
+ 0  0 421504 1.2Gi    0    0     0     0    0</span></pre>
+          </div>
+          <div class="table-wrap" style="margin-top:10px;">
+            <table>
+              <thead><tr><th>Column</th><th>Meaning</th><th>Danger sign</th></tr></thead>
+              <tbody>
+                <tr><td><code>r</code></td><td>Processes waiting for CPU</td><td>&gt; core count</td></tr>
+                <tr><td><code>b</code></td><td>Processes in uninterruptible sleep (disk wait)</td><td>&gt; 0 sustained</td></tr>
+                <tr><td><code>si</code></td><td>Swap pages read IN from disk per sec</td><td>Any non-zero value</td></tr>
+                <tr><td><code>so</code></td><td>Swap pages written OUT to disk per sec</td><td>Any non-zero value</td></tr>
+                <tr><td><code>wa</code></td><td>CPU% waiting on I/O</td><td>&gt; 10%</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="margin-top:8px; font-size:13px; color:var(--muted);">At 09:50: <code>si=0 so=0</code> — swap no longer active. <code>wa=1</code> — I/O wait normal. Recovery confirmed.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>iostat — the disk latency revelation</h4>
+          <p><code>iostat -x 1 3</code> shows per-device I/O statistics. The <code>r_await</code> and <code>w_await</code> columns expose latency.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">iostat</span> <span class="flag">-x</span> <span class="arg">1 3</span>
+<span class="out">Device    r/s    w/s   r_await  w_await  %util
+vda      3.17   7.64    </span><span class="warn">44ms</span><span class="out">      6.96     1.51
+loop0    0.00   0.16   </span><span class="hi">131ms</span><span class="out">     83.39     1.12   </span><span class="comment"># ← /tmp device</span></pre>
+          </div>
+          <div class="callout callout-danger" style="margin-top:10px;">
+            <i class="fa-solid fa-skull-crossbones"></i>
+            <div><strong>Critical finding:</strong> <code>loop0</code> (which is <code>/tmp</code>) has a <strong>131ms read await</strong> and 83ms write await. A healthy SSD should be 1–5ms. This means any process reading or writing to <code>/tmp</code> waits ~130 times longer than expected. PHP session files are stored in <code>/tmp</code> — every PHP worker stalls when accessing sessions.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Network connections — rule out a traffic flood</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ss</span> <span class="flag">-s</span>
+<span class="out">TCP: 12 (estab </span><span class="ok">10</span><span class="out">, closed 0, orphaned 0, timewait 0)</span>
+<span class="comment"># Only 10 connections — this is NOT a traffic flood</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Key lesson from this round:</strong> The recovery at 09:50 is itself a clue. Something fired at 09:39, caused a spike for ~8 minutes, then stopped. This pattern is characteristic of a <strong>scheduled cron job</strong>, not a traffic attack (which would be sustained). The I/O latency on /tmp is the mechanism-of-harm. Finding <em>what</em> accesses /tmp on a schedule is the next step.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 4. ATTACK VS CRON -->
+  <section class="section" id="s4">
+    <div class="section-header">
+      <div class="section-icon icon-yellow"><i class="fa-solid fa-shield-halved"></i></div>
+      <div class="section-title-wrap">
+        <h2>Attack vs. Scheduled Job — How to Determine Which</h2>
+        <p>Gathering evidence to distinguish a malicious flood from an internal cron trigger</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Before investigating cron jobs, it's important to rule out the possibility that the spike was caused by a malicious attacker. The evidence-based approach:</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:var(--red);"><i class="fa-solid fa-user-secret"></i></div>
+        <h4>Signs of an Attack</h4>
+        <p>Sustained high connection count. Many different IPs in access logs. HTTP requests flooding in. Traffic doesn't stop until firewall blocks it.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--orange);"><i class="fa-solid fa-clock"></i></div>
+        <h4>Signs of a Cron Job</h4>
+        <p>Spike starts at a predictable time (e.g. :09 or :39). Spike resolves itself after a few minutes. Zero or near-zero web traffic during spike. Repeats on a schedule.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--green);"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <h4>The Definitive Test</h4>
+        <p>Count HTTP requests in the Apache access log <em>during the exact spike window</em>. Zero requests = no traffic attack. Case closed.</p>
+      </div>
+    </div>
+
+    <p style="margin-top:16px; margin-bottom:8px; font-weight:600; font-size:14px;">The log check — the most important command in this investigation:</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — run as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre><span class="comment"># Count requests in Apache access log during the exact spike window</span>
+<span class="cmd">grep</span> <span class="arg">"02/Apr/2026:09:3[89]\|02/Apr/2026:09:4[0-5]"</span> \
+  /usr/local/apache/domlogs/portal-app.example.net | <span class="cmd">wc</span> <span class="flag">-l</span>
+
+<span class="ok">0</span>   <span class="comment"># ZERO HTTP requests during the entire spike window — attack ruled out</span></pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>Apache log path on cPanel servers:</strong> <code>/usr/local/apache/domlogs/sitename.com</code> (non-SSL) and <code>/usr/local/apache/domlogs/sitename.com-ssl_log</code> (HTTPS). These are the definitive record of all web requests that reached the server.</div>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600; margin-bottom:12px; font-size:14px;">Security finding noted during investigation:</p>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>SSH Brute Force — separate issue:</strong> The root login greeting showed:<br>
+      <code>"There were 396 failed login attempts since the last successful login"</code><br>
+      Source IP: <code>185.208.159.109</code>. Last successful root login was March 20 — 13 days prior. cPHulk is blocking the attempts, but the volume is high. This is an unrelated ongoing threat to address separately (see Section 12).</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 5. CRON JOB AUDIT -->
+  <section class="section" id="s5">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-clock"></i></div>
+      <div class="section-title-wrap">
+        <h2>Auditing All Cron Jobs on a cPanel Server</h2>
+        <p>Every location where scheduled jobs can be defined</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">On a cPanel server, cron jobs can be defined in four different places. A complete audit requires checking all four. <strong>Root access is required</strong> — non-root users cannot view other users' crontabs.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>User crontabs — /var/spool/cron/</h4>
+          <p>Each user with a crontab has a file here named after their username.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — as root</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># See which users have crontabs</span>
+<span class="cmd">ls</span> <span class="arg">/var/spool/cron/</span>
+<span class="ok">appuser  root</span>
+
+<span class="comment"># Read a specific user's crontab (requires root)</span>
+<span class="cmd">crontab</span> <span class="flag">-u</span> <span class="arg">appuser</span> <span class="flag">-l</span>
+<span class="out">MAILTO=""
+SHELL="/bin/bash"
+0 0 * * * /usr/local/bin/php /home/appuser/public_html/backup_services/cron_backup_all.php</span>
+
+<span class="comment"># Dump ALL user crontabs at once</span>
+<span class="cmd">cat</span> <span class="arg">/var/spool/cron/*</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>System cron drop-in files — /etc/cron.d/</h4>
+          <p>Services and packages install their own cron files here. Each file specifies its own user context.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ls</span> <span class="flag">-la</span> <span class="arg">/etc/cron.d/</span>
+<span class="out">0hourly          backup_jobs_helper  comet_license_sync
+cpanel-analytics  cpanel_autossl    csf-cron
+lfd-cron          mailman           softaculous
+softaculous2</span>
+
+<span class="cmd">cat</span> <span class="arg">/etc/cron.d/*</span>   <span class="comment"># read all of them</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Periodic directories — hourly, daily, weekly, monthly</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ls</span> <span class="arg">/etc/cron.hourly/</span>   <span class="comment"># 0anacron</span>
+<span class="cmd">ls</span> <span class="arg">/etc/cron.daily/</span>    <span class="comment"># logrotate</span>
+<span class="cmd">ls</span> <span class="arg">/etc/cron.weekly/</span>   <span class="comment"># (empty on this server)</span>
+<span class="cmd">ls</span> <span class="arg">/etc/cron.monthly/</span>  <span class="comment"># (empty on this server)</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>All-users dump — one command to see everything</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">for</span> user in $(<span class="cmd">cut</span> <span class="flag">-f1 -d:</span> <span class="arg">/etc/passwd</span>); do
+  crons=$(<span class="cmd">crontab</span> <span class="flag">-u</span> <span class="arg">"$user"</span> <span class="flag">-l</span> 2>/dev/null | <span class="cmd">grep</span> <span class="flag">-v</span> <span class="arg">'^#\|^$'</span>)
+  [ -n "$crons" ] && <span class="cmd">echo</span> <span class="arg">"=== $user ==="</span> && <span class="cmd">echo</span> "$crons"
+<span class="cmd">done</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600; margin-bottom:12px; font-size:14px;">Complete cron inventory found on this server:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Schedule</th><th>Job</th><th>Source</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>* * * * *</code></td>
+            <td>comet_license_registration_sync</td>
+            <td>/etc/cron.d/</td>
+            <td>Every minute — lightweight</td>
+          </tr>
+          <tr>
+            <td><code>*/5 * * * *</code></td>
+            <td>dcpumon-wrapper, backup_jobs_helper, softaculous do_backups</td>
+            <td>root crontab + /etc/cron.d/</td>
+            <td>Every 5 min</td>
+          </tr>
+          <tr>
+            <td><code>5,20,35,50 * * * *</code></td>
+            <td>eximstats_spam_check</td>
+            <td>root crontab</td>
+            <td>Every 15 min</td>
+          </tr>
+          <tr>
+            <td><code>2,17,32,47 * * * *</code></td>
+            <td>dnsqueue</td>
+            <td>root crontab</td>
+            <td>Every 15 min</td>
+          </tr>
+          <tr style="background: rgba(245,101,101,.05);">
+            <td><code><strong>09,39 * * * *</strong></code></td>
+            <td><strong>clean_user_php_sessions</strong></td>
+            <td>root crontab</td>
+            <td><span class="badge-pill pill-red">THE CULPRIT</span></td>
+          </tr>
+          <tr>
+            <td><code>35 * * * *</code></td>
+            <td>tail-check</td>
+            <td>root crontab</td>
+            <td>Hourly</td>
+          </tr>
+          <tr>
+            <td><code>25 */2 * * *</code></td>
+            <td>mysqluserstore, dbindex</td>
+            <td>root crontab</td>
+            <td>Every 2 hrs</td>
+          </tr>
+          <tr>
+            <td><code>0 0 * * *</code></td>
+            <td>PHP backup (cron_backup_all.php)</td>
+            <td>appuser crontab</td>
+            <td>Midnight daily</td>
+          </tr>
+          <tr>
+            <td><code>0 2 * * *</code></td>
+            <td>cPanel backup</td>
+            <td>root crontab</td>
+            <td>2 AM daily</td>
+          </tr>
+          <tr>
+            <td><code>39 5 * * *</code></td>
+            <td>fix-cpanel-perl + upcp --cron</td>
+            <td>root crontab</td>
+            <td>5:39 AM daily</td>
+          </tr>
+          <tr>
+            <td><code>17 0,3,6,9,12,15,18,21 * * *</code></td>
+            <td>autossl_check --all</td>
+            <td>/etc/cron.d/cpanel_autossl</td>
+            <td>Every 3 hrs</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Malformed cron entry found:</strong> In <code>/etc/cron.d/softaculous</code>, an entry starting with <code>e2 18 * * *</code> has an invalid minute value. This line silently fails to run every day. Not harmful but worth noting as a maintenance item.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 6. ROOT CAUSE FOUND -->
+  <section class="section" id="s6">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-bullseye"></i></div>
+      <div class="section-title-wrap">
+        <h2>Root Cause Identified</h2>
+        <p>clean_user_php_sessions + slow /tmp = PHP worker avalanche</p>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <i class="fa-solid fa-skull-crossbones"></i>
+      <div><strong>The culprit:</strong>
+        <code style="display:block; margin-top:8px; font-size:13px;">09,39 * * * * /usr/local/cpanel/scripts/clean_user_php_sessions &gt; /dev/null 2&gt;&amp;1</code>
+        This cPanel maintenance script runs <strong>48 times per day</strong> (every 30 minutes). It walks the <code>/tmp</code> filesystem to find and delete expired PHP session files. On this server, <code>/tmp</code> uses a loop device with 131ms latency — 26× slower than normal.
+      </div>
+    </div>
+
+    <p style="margin: 16px 0 12px; font-weight:600; font-size:14px;">The complete causal chain:</p>
+
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-time">09:39:00</div>
+        <div class="tl-dot-wrap"><div class="tl-dot tl-dot-orange"></div><div class="tl-line"></div></div>
+        <div class="tl-body">
+          <h4>clean_user_php_sessions fires</h4>
+          <p>Cron triggers the script. It begins scanning <code>/tmp</code> for PHP session files matching <code>sess_*</code> pattern.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">09:39:01</div>
+        <div class="tl-dot-wrap"><div class="tl-dot tl-dot-orange"></div><div class="tl-line"></div></div>
+        <div class="tl-body">
+          <h4>/tmp filesystem locks during iteration</h4>
+          <p>The loop0 device (131ms per read) creates I/O lock contention. Any other process trying to read/write a session file to <code>/tmp</code> is now blocked.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">09:39:02+</div>
+        <div class="tl-dot-wrap"><div class="tl-dot tl-dot-red"></div><div class="tl-line"></div></div>
+        <div class="tl-body">
+          <h4>PHP workers stall on session I/O</h4>
+          <p>Every active PHP-CGI worker on every site tries to read its session from <code>/tmp</code> on each request (PHP default). All stall and enter <code>S</code> (sleeping) state.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">09:39–09:47</div>
+        <div class="tl-dot-wrap"><div class="tl-dot tl-dot-red"></div><div class="tl-line"></div></div>
+        <div class="tl-body">
+          <h4>Worker pile-up — the avalanche</h4>
+          <p>Apache receives new HTTP requests, spawns new PHP-CGI workers. These stall too. Apache spawns more. Workers accumulate: 5 → 15 → 36 → 43. Load average climbs: 2 → 4 → 7.20.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">~09:47</div>
+        <div class="tl-dot-wrap"><div class="tl-dot tl-dot-green"></div><div class="tl-line"></div></div>
+        <div class="tl-body">
+          <h4>clean_user_php_sessions finishes</h4>
+          <p>Script completes after ~8 minutes. /tmp locks release. All 43 stalled workers drain simultaneously. Load drops from 7.20 to 0.21 within minutes.</p>
+        </div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">09:50</div>
+        <div class="tl-dot-wrap"><div class="tl-dot tl-dot-green"></div></div>
+        <div class="tl-body">
+          <h4>Server fully recovers</h4>
+          <p>Load average: 0.21. Only 10 web connections. vmstat shows si=0 so=0. Server back to normal — until 10:09 when the cycle repeats.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Why psphub was hit hardest:</strong> portal-app.example.net had the most active users and therefore the most active PHP session files in <code>/tmp</code>. Workers for that site were the first to stall and accumulated the fastest — 36 out of 43 total PHP workers were for psphub alone.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 7. LIVE HEALTH CHECK -->
+  <section class="section" id="s7">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-gauge-high"></i></div>
+      <div class="section-title-wrap">
+        <h2>Live Health Check Commands</h2>
+        <p>The essential toolkit for checking server health in real time</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">These are the commands used throughout this investigation. Each serves a specific diagnostic purpose. Use these whenever users report slowness.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>The quick all-in-one health snapshot</h4>
+          <p>Run this first. It tells you load, memory, disk, and PHP worker count in one command.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">echo</span> <span class="arg">"=== LOAD ==="</span> && <span class="cmd">uptime</span> && \
+<span class="cmd">echo</span> <span class="arg">"=== MEMORY ==="</span> && <span class="cmd">free</span> <span class="flag">-h</span> && \
+<span class="cmd">echo</span> <span class="arg">"=== DISK ==="</span> && <span class="cmd">df</span> <span class="flag">-h</span> && \
+<span class="cmd">echo</span> <span class="arg">"=== TOP 5 CPU ==="</span> && <span class="cmd">ps aux</span> <span class="flag">--sort=-%cpu</span> | <span class="cmd">head</span> <span class="arg">-6</span> && \
+<span class="cmd">echo</span> <span class="arg">"=== TOP 5 MEM ==="</span> && <span class="cmd">ps aux</span> <span class="flag">--sort=-%mem</span> | <span class="cmd">head</span> <span class="arg">-6</span> && \
+<span class="cmd">echo</span> <span class="arg">"=== PHP WORKERS ==="</span> && <span class="cmd">ps aux</span> | <span class="cmd">grep</span> <span class="arg">php-cgi</span> | <span class="cmd">grep</span> <span class="flag">-v</span> <span class="arg">grep</span> | <span class="cmd">wc</span> <span class="flag">-l</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Real-time watch — update every 3 seconds</h4>
+          <p>Leave this running in a terminal tab during suspected incidents. Shows load, memory, and PHP worker count live.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">watch</span> <span class="flag">-n 3</span> <span class="arg">'uptime; echo; free -h; echo; ps aux | grep php-cgi | grep -v grep | wc -l'</span>
+<span class="comment"># Press Ctrl+C to stop</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Identify D-state (stuck) processes</h4>
+          <p>Processes in <code>D</code> state are in uninterruptible sleep — waiting on I/O. These directly add to load average even when using no CPU.</p>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Find all processes in D (uninterruptible sleep) state</span>
+<span class="cmd">ps aux</span> | <span class="cmd">awk</span> <span class="arg">'$8 == "D"'</span> | <span class="cmd">head</span> <span class="arg">-20</span>
+
+<span class="comment"># What was found during this incident (11:34 check):</span>
+<span class="out">appuser 1765108  D  php-cgi regional-app.example.net   </span><span class="hi">← stuck on disk</span>
+<span class="out">appuser 1765124  D  php-cgi regional-app.example.net   </span><span class="hi">← stuck on disk</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 8. RAM & CPU MONITORING -->
+  <section class="section" id="s8">
+    <div class="section-header">
+      <div class="section-icon icon-blue"><i class="fa-solid fa-microchip"></i></div>
+      <div class="section-title-wrap">
+        <h2>RAM &amp; CPU Monitoring in Depth</h2>
+        <p>Reading free, top, and vmstat — actual outputs from this server</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">Actual output captured at 11:31–11:38 during the second monitoring session (server had been upgraded to 5.8Gi RAM since the morning incident).</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Reading free -h output</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> output — 11:31</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre>              total    used    free   shared  buff/cache  available
+Mem:          <span class="ok">5.8Gi</span>   1.4Gi   1.0Gi   9.0Mi       3.3Gi      <span class="ok">4.1Gi</span>
+Swap:         2.0Gi   <span class="warn">452Mi</span>   1.6Gi</pre>
+          </div>
+          <div class="table-wrap" style="margin-top:10px;">
+            <table>
+              <thead><tr><th>Column</th><th>Meaning</th><th>This server</th></tr></thead>
+              <tbody>
+                <tr><td><code>total</code></td><td>Physical RAM installed</td><td>5.8Gi — upgraded</td></tr>
+                <tr><td><code>used</code></td><td>RAM actively in use by processes</td><td>1.4Gi — healthy</td></tr>
+                <tr><td><code>free</code></td><td>Completely unused RAM</td><td>1.0Gi — good</td></tr>
+                <tr><td><code>buff/cache</code></td><td>Disk cache (reclaimable by OS anytime)</td><td>3.3Gi — OS using disk cache optimally</td></tr>
+                <tr><td><code>available</code></td><td>RAM actually available for new processes (free + reclaimable cache)</td><td>4.1Gi — excellent</td></tr>
+                <tr><td>Swap <code>used</code></td><td>RAM pages moved to disk swap</td><td>452Mi — residue from March OOM events, not active</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Reading top output — load interpretation</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> top — 11:33</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre>top - 11:33:42 up 12 days, 10:06
+Tasks: 170 total, 1 running, 169 sleeping
+%Cpu(s):  <span class="ok">0.2 us</span>,  0.3 sy, <span class="ok">98.3 id</span>,  <span class="hi">0.9 wa</span>
+MiB Mem:  5937 total,  1449 free,  1072 used
+MiB Swap: 2048 total,  1595 free,   452 used
+
+<span class="out">PID   USER      %CPU %MEM COMMAND
+959   redis      0.3  0.1  redis-server
+1055  mysql      0.3  4.6  mysqld</span></pre>
+          </div>
+          <p style="margin-top:8px; font-size:13px; color:var(--muted);">CPU is 98.3% idle — the load average of 3.92 at this time was entirely from disk I/O wait (the concurrent stall pattern), not from actual computation. The <code>0.9 wa</code> (I/O wait) confirms a process is blocking on disk.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Who is using swap? — per-process swap usage</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">for</span> file in /proc/*/status; do
+  <span class="cmd">awk</span> <span class="arg">'/VmSwap|Name/{printf $2 " "}'</span> $file; <span class="cmd">echo</span>
+<span class="cmd">done</span> | <span class="cmd">sort</span> <span class="flag">-k2 -n -r</span> | <span class="cmd">head</span> <span class="arg">-10</span>
+
+<span class="out">mysqld       </span><span class="hi">211152</span><span class="out">   ← 206MB in swap — residue from past OOM events
+spamd        </span><span class="warn">85928</span><span class="out">    ← SpamAssassin parent
+spamd        </span><span class="warn">52944</span><span class="out">    ← SpamAssassin child 1
+named         40792   ← DNS server
+spamd         13472
+lfd            8428   ← CSF firewall log daemon
+httpd          5428</span></pre>
+          </div>
+          <p style="margin-top:8px; font-size:13px; color:var(--muted);">MySQL's 206MB in swap is a legacy of the March OOM crashes — those pages were swapped out and never reclaimed. Since <code>si=0 so=0</code> in vmstat, nothing is actively swapping. A <code>swapoff -a &amp;&amp; swapon -a</code> during low traffic would clear this.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 9. DISK I/O ANALYSIS -->
+  <section class="section" id="s9">
+    <div class="section-header">
+      <div class="section-icon icon-orange"><i class="fa-solid fa-hard-drive"></i></div>
+      <div class="section-title-wrap">
+        <h2>Disk I/O Analysis</h2>
+        <p>How to read iostat and identify storage problems — including the stall pattern discovered at 11:35</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;"><code>iostat -x 1 5</code> takes 5 samples one second apart. The first sample is a historical average since boot; subsequent samples are real-time intervals.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Understanding iostat columns</h4>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Column</th><th>Meaning</th><th>Alert threshold</th></tr></thead>
+              <tbody>
+                <tr><td><code>r/s</code></td><td>Read operations per second</td><td>Context-dependent</td></tr>
+                <tr><td><code>w/s</code></td><td>Write operations per second</td><td>Context-dependent</td></tr>
+                <tr><td><code>r_await</code></td><td>Average wait time for read requests (ms)</td><td>&gt; 20ms = concern, &gt; 50ms = problem</td></tr>
+                <tr><td><code>w_await</code></td><td>Average wait time for write requests (ms)</td><td>&gt; 20ms = concern, &gt; 50ms = problem</td></tr>
+                <tr><td><code>%util</code></td><td>Percentage of time device was busy</td><td>&gt; 80% sustained = saturated</td></tr>
+                <tr><td><code>aqu-sz</code></td><td>Average queue size (requests waiting)</td><td>&gt; 1 sustained = queuing</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>First-round iostat results (09:44 — during active investigation)</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-file-lines"></i> iostat output — first round</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="out">Device    r/s    w/s   r_await  w_await  %util
+vda      3.17   7.64   </span><span class="warn">44ms</span><span class="out">     6.96ms   1.51%
+loop0    0.00   0.16   </span><span class="hi">131ms</span><span class="out">    83.39ms  1.12%</span>  <span class="comment"># /tmp — extremely slow</span></pre>
+          </div>
+          <p style="font-size:13px; margin-top:6px; color:var(--muted);">The main disk <code>vda</code> at 44ms is above normal (typical ~5–15ms for VPS SSD) — suggesting VPS storage throttling. But <code>loop0</code> at 131ms is catastrophic for a device that handles PHP session files on every request.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Second-round iostat results (11:35 — new disk stall detected)</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-file-lines"></i> iostat live samples — 11:35</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="comment"># Sample 1 (historical average since boot):</span>
+<span class="out">Device   r_await  w_await  %util
+vda       50ms      7ms    1.51%
+loop0    </span><span class="hi">169ms</span><span class="out">     93ms    1.12%</span>
+
+<span class="comment"># Samples 2-5 (live — 1 second intervals):</span>
+<span class="out">avg-cpu: %iowait = </span><span class="hi">74.75%  74.81%  74.94%  74.56%</span>
+<span class="out">vda:     %util  = </span><span class="hi">100%    100%    100%    100%</span>
+<span class="out">vda:     r/s    =   0.00    0.00    0.00    0.00</span>  <span class="comment"># ZERO ops but 100% busy!</span>
+<span class="out">vda:     w/s    =   0.00    0.00    0.00    0.00</span></pre>
+          </div>
+          <div class="callout callout-danger" style="margin-top:10px;">
+            <i class="fa-solid fa-skull-crossbones"></i>
+            <div><strong>Disk I/O stall pattern:</strong> The disk reports 100% utilization but is processing ZERO operations. This is a <strong>hung I/O request</strong> — one process issued a disk command that the VPS storage backend has not responded to. The entire I/O queue is blocked behind it. Meanwhile <code>vmstat</code> shows <code>b=1</code> (one process permanently in uninterruptible wait). This is a hosting infrastructure issue.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-lightbulb"></i>
+      <div><strong>The contradiction that reveals a true stall:</strong> In a healthy system, high <code>%util</code> correlates with high <code>r/s</code> or <code>w/s</code>. When you see <code>%util = 100%</code> alongside <code>r/s = 0, w/s = 0</code>, it means the device is "busy" only in the sense that it's stuck waiting for a response that hasn't come. This is a VPS infrastructure problem, not a software problem.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 10. NETWORK CONNECTIONS -->
+  <section class="section" id="s10">
+    <div class="section-header">
+      <div class="section-icon icon-purple"><i class="fa-solid fa-network-wired"></i></div>
+      <div class="section-title-wrap">
+        <h2>Analysing Network Connections</h2>
+        <p>Using ss to read active connections and detect patterns</p>
+      </div>
+    </div>
+
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;"><code>ss</code> (socket statistics) replaces the older <code>netstat</code> command. It's faster and more detailed.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Connection summary</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ss</span> <span class="flag">-s</span>
+<span class="out">Total: 331
+TCP:   94 (</span><span class="ok">estab 28</span><span class="out">, closed 2, orphaned 2, timewait 1)</span></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>All established connections with process names</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ss</span> <span class="flag">-tnp</span> | <span class="cmd">grep</span> <span class="arg">ESTAB</span>
+<span class="out">ESTAB  203.0.113.10:443    98.97.77.217:20172   ("httpd",pid=...)    ← HTTPS visitor
+ESTAB  127.0.0.1:54328       127.0.0.1:3306        ("php-cgi",pid=...)  ← PHP→MySQL
+ESTAB  203.0.113.10:22     102.89.83.221:42719   ("sshd",pid=...)     ← your SSH
+ESTAB  203.0.113.10:53     45.33.109.18:35392    ("named",pid=...)    ← DNS query</span></pre>
+          </div>
+          <p style="font-size:13px; margin-top:6px; color:var(--muted);">At 11:37: 28 established connections — 8 are PHP→MySQL (port 3306), 5 are httpd→external browsers on HTTPS, 4 are SSH sessions, and 1 is a DNS resolver query. Completely normal traffic pattern.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Connection state count — watch for CLOSE_WAIT accumulation</h4>
+          <div class="code-block">
+            <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+            <pre><span class="cmd">ss</span> <span class="flag">-tan</span> | <span class="cmd">awk</span> <span class="arg">'{print $1}'</span> | <span class="cmd">sort</span> | <span class="cmd">uniq</span> <span class="flag">-c</span> | <span class="cmd">sort</span> <span class="flag">-rn</span>
+<span class="out">    46 LISTEN
+    29 ESTAB
+    </span><span class="warn">16 CLOSE-WAIT</span><span class="out">
+     2 FIN-WAIT-1
+     1 State
+     1 LAST-ACK</span></pre>
+          </div>
+          <div class="table-wrap" style="margin-top:10px;">
+            <table>
+              <thead><tr><th>State</th><th>Meaning</th><th>Concern if…</th></tr></thead>
+              <tbody>
+                <tr><td><code>ESTAB</code></td><td>Active established connections</td><td>&gt; 300 for a small site</td></tr>
+                <tr><td><code>CLOSE-WAIT</code></td><td>Client disconnected, server hasn't closed its end yet</td><td>&gt; 50 and growing</td></tr>
+                <tr><td><code>TIME-WAIT</code></td><td>Connection closing, waiting for late packets</td><td>&gt; 500 sustained</td></tr>
+                <tr><td><code>FIN-WAIT</code></td><td>Server initiated close, waiting for acknowledgement</td><td>&gt; 50 sustained</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p style="font-size:13px; margin-top:6px; color:var(--muted);">The 16 CLOSE-WAIT connections are a side effect of PHP stalls — browsers gave up and disconnected, but the PHP-CGI processes continued running, holding the server-side socket open. This is expected and will clear when the PHP workers finish.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 11. FULL INCIDENT REPORT -->
+  <section class="section" id="s11">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-file-lines"></i></div>
+      <div class="section-title-wrap">
+        <h2>Full Incident Report — April 2, 2026</h2>
+        <p>Complete findings from both diagnostic sessions (09:42 and 11:31–11:38)</p>
+      </div>
+    </div>
+
+    <p style="font-weight:600; margin-bottom:12px;">Morning session (09:42) — findings at time of spike:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Finding</th><th>Detail</th><th>Severity</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>PHP-CGI avalanche</td>
+            <td>43 workers running, 36 for psphub, all in S state (stalled on I/O)</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>Load average</td>
+            <td>7.20 (5-min: 5.80, 15-min: 6.31) on a 4-core server</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>Swap occupancy</td>
+            <td>421Mi in use, but si=0 so=0 (not actively swapping)</td>
+            <td><span class="badge-pill pill-orange">Warning</span></td>
+          </tr>
+          <tr>
+            <td>/tmp read latency</td>
+            <td>loop0 device: r_await=131ms (normal: 1–5ms)</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>Web traffic during spike</td>
+            <td>0 HTTP requests in Apache access log for 09:38–09:45</td>
+            <td><span class="badge-pill pill-green">Attack ruled out</span></td>
+          </tr>
+          <tr>
+            <td>Root cause</td>
+            <td>clean_user_php_sessions cron at 09:39 hammering slow /tmp</td>
+            <td><span class="badge-pill pill-purple">Confirmed</span></td>
+          </tr>
+          <tr>
+            <td>SSH brute force</td>
+            <td>396 failed attempts since last root login; source: 185.208.159.109</td>
+            <td><span class="badge-pill pill-orange">Separate threat</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600; margin-bottom:12px;">Afternoon session (11:31–11:38) — second health check:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Metric</th><th>Value</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Load average (1-min / 5-min / 15-min)</td><td>4.73 / 4.56 / 5.11</td><td><span class="badge-pill pill-orange">Elevated</span></td></tr>
+          <tr><td>CPU active usage</td><td>0.5% — 98.3% idle</td><td><span class="badge-pill pill-green">OK</span></td></tr>
+          <tr><td>CPU iowait</td><td>74.75–74.94% across 4 consecutive samples</td><td><span class="badge-pill pill-red">Stall active</span></td></tr>
+          <tr><td>vda disk utilization</td><td>100% busy, 0 ops/sec — hung I/O request</td><td><span class="badge-pill pill-red">Stall active</span></td></tr>
+          <tr><td>RAM available</td><td>4.1Gi of 5.8Gi</td><td><span class="badge-pill pill-green">Healthy</span></td></tr>
+          <tr><td>Swap activity (si/so)</td><td>0 / 0 — not actively swapping</td><td><span class="badge-pill pill-green">Healthy</span></td></tr>
+          <tr><td>MySQL in swap</td><td>206MB — residue, not active</td><td><span class="badge-pill pill-orange">Watch</span></td></tr>
+          <tr><td>PHP workers total</td><td>11 (normal range) — 2 in D state for psplagos</td><td><span class="badge-pill pill-orange">Watch</span></td></tr>
+          <tr><td>Web connections</td><td>28 established</td><td><span class="badge-pill pill-green">Normal</span></td></tr>
+          <tr><td>CLOSE-WAIT connections</td><td>16</td><td><span class="badge-pill pill-blue">Monitor</span></td></tr>
+          <tr><td>Disk space (main)</td><td>28% of 118Gi</td><td><span class="badge-pill pill-green">Healthy</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Key observation from the afternoon session:</strong> The elevated load (4.73) was NOT from CPU computation but entirely from the disk I/O stall — a separate infrastructure-level issue where the VPS storage backend hung on a request. The morning's cron-triggered avalanche and the afternoon's stall are two different types of performance incidents requiring different remedies.</div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 12. FIXES & ACTIONS -->
+  <section class="section" id="s12">
+    <div class="section-header">
+      <div class="section-icon icon-green"><i class="fa-solid fa-wrench"></i></div>
+      <div class="section-title-wrap">
+        <h2>Fixes &amp; Recommended Actions</h2>
+        <p>Prioritised list — immediate, short-term, and ongoing</p>
+      </div>
+    </div>
+
+    <p style="font-weight:600; margin-bottom:12px; font-size:14px;">Fix 1 — Move PHP sessions off /tmp (Primary fix — eliminates root cause)</p>
+
+    <p style="margin-bottom:10px; color:var(--muted); font-size:14px;">The cleanest fix: make PHP store session files on the fast main disk instead of the slow loop0 /tmp device. This means <code>clean_user_php_sessions</code> running on /tmp will no longer affect PHP workers.</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — WHM approach (recommended)</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre><span class="comment"># Step 1: Create a dedicated session directory for the user</span>
+<span class="cmd">mkdir</span> <span class="arg">-p /home/appuser/tmp/sessions</span>
+<span class="cmd">chmod</span> <span class="arg">700 /home/appuser/tmp/sessions</span>
+<span class="cmd">chown</span> <span class="arg">appuser:appuser /home/appuser/tmp/sessions</span>
+
+<span class="comment"># Step 2: In WHM → MultiPHP INI Editor → User Editor → appuser
+# Set:  session.save_path = /home/appuser/tmp/sessions
+# Or edit directly:</span>
+<span class="cmd">echo</span> <span class="arg">'session.save_path = "/home/appuser/tmp/sessions"'</span> >> \
+  /opt/cpanel/ea-php82/root/etc/php.d/appuser.ini</pre>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600; margin-bottom:12px; font-size:14px;">Fix 2 — Reduce clean_user_php_sessions frequency (Alternative/Additional fix)</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — edit root crontab</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre><span class="cmd">crontab</span> <span class="flag">-e</span>   <span class="comment"># opens root's crontab in editor</span>
+
+<span class="comment"># Find this line:</span>
+<span class="hi">09,39 * * * * /usr/local/cpanel/scripts/clean_user_php_sessions &gt; /dev/null 2&gt;&amp;1</span>
+
+<span class="comment"># Change it to run once nightly at 2 AM instead:</span>
+<span class="ok">0 2 * * * /usr/local/cpanel/scripts/clean_user_php_sessions &gt; /dev/null 2&gt;&amp;1</span></pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <div><strong>Important:</strong> cPanel auto-updates (<code>upcp</code>) can overwrite root's crontab. After a cPanel update, verify this change is still in place. Fix 1 (moving session.save_path) is more durable as it survives cPanel updates.</div>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600; margin-bottom:12px; font-size:14px;">Fix 3 — Reclaim MySQL swap during quiet hours</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — run at 2–4 AM only</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre><span class="comment"># Disable swap entirely (moves all pages back to RAM), then re-enable
+# Only safe if RAM available &gt; current swap used (4.1Gi available, 452Mi in swap = safe)</span>
+<span class="cmd">swapoff</span> <span class="flag">-a</span> && <span class="cmd">swapon</span> <span class="flag">-a</span>
+<span class="comment"># This reclaims MySQL's 206MB from swap, improving query latency</span></pre>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600; margin-bottom:12px; font-size:14px;">Fix 4 — Block the SSH brute force IP</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — CSF firewall</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre><span class="comment"># Permanently block the brute force source IP</span>
+<span class="cmd">csf</span> <span class="flag">-d</span> <span class="arg">185.208.159.109</span>
+
+<span class="comment"># Verify it was added</span>
+<span class="cmd">grep</span> <span class="arg">185.208.159.109</span> /etc/csf/csf.deny</pre>
+    </div>
+
+    <div class="divider"></div>
+    <p style="font-weight:600; margin-bottom:12px; font-size:14px;">Fix 5 — Verify the fix worked (monitor at next cron fire)</p>
+
+    <div class="code-block">
+      <div class="code-bar"><div class="lang"><i class="fa-solid fa-terminal"></i> bash — run at :08 or :38 of any hour</div><div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div></div>
+      <pre><span class="comment"># Start this 1 minute BEFORE the cron fires (:09 or :39)
+# Watch load and PHP worker count during clean_user_php_sessions execution</span>
+<span class="cmd">watch</span> <span class="flag">-n 3</span> <span class="arg">'uptime; echo; ps aux | grep php-cgi | grep -v grep | wc -l'</span>
+
+<span class="comment"># If fix was successful:
+#   Load stays &lt; 1.0 during :09/:39 window
+#   PHP workers stay &lt; 10
+# If still broken:
+#   Load spikes to &gt; 4.0 and worker count climbs to 20+</span></pre>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:var(--green);"><i class="fa-solid fa-circle-check"></i></div>
+        <h4>Fix 5 — Investigate psplagos</h4>
+        <p>Both afternoon D-state workers were for regional-app.example.net. Check its slow query log and confirm no long-running database queries are holding connections open.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--orange);"><i class="fa-solid fa-envelope"></i></div>
+        <h4>Fix 6 — Reduce spamd children</h4>
+        <p>spamd is using ~354MB RAM with 3 of 5 slots occupied. If email volume is low, reduce <code>--max-children=2</code> in WHM to free ~120MB.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--accent);"><i class="fa-solid fa-phone"></i></div>
+        <h4>Fix 7 — Report stall to host</h4>
+        <p>The afternoon disk stall (100% util, 0 ops/sec) is a VPS infrastructure issue. Contact your host with the iostat output if it recurs frequently.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────────── 13. INCIDENT TIMELINE -->
+  <section class="section" id="s13">
+    <div class="section-header">
+      <div class="section-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="section-title-wrap">
+        <h2>Complete Incident Timeline — April 2, 2026</h2>
+        <p>Minute-by-minute chronology of events and discoveries</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time (WAT)</th><th>Event</th><th>How Discovered</th><th>Severity</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>09:39:00</td>
+            <td>clean_user_php_sessions cron fires, begins /tmp scan</td>
+            <td>Root crontab audit — confirmed retrospectively</td>
+            <td><span class="badge-pill pill-orange">Trigger</span></td>
+          </tr>
+          <tr>
+            <td>09:39–09:42</td>
+            <td>PHP session I/O stalls begin; workers accumulate; load climbs</td>
+            <td>Inferred from hardware evidence</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>09:42</td>
+            <td>Users report slowness; investigation begins</td>
+            <td>User report</td>
+            <td><span class="badge-pill pill-red">Incident open</span></td>
+          </tr>
+          <tr>
+            <td>09:42</td>
+            <td>43 php-cgi workers found; load 7.20; 278Mi free RAM; 421Mi swap</td>
+            <td>uptime, free -h, ps aux</td>
+            <td><span class="badge-pill pill-red">Critical</span></td>
+          </tr>
+          <tr>
+            <td>09:44</td>
+            <td>iostat reveals loop0 (/tmp) has 131ms read latency</td>
+            <td>iostat -x</td>
+            <td><span class="badge-pill pill-red">Root mechanism found</span></td>
+          </tr>
+          <tr>
+            <td>09:47</td>
+            <td>clean_user_php_sessions finishes; /tmp I/O locks release</td>
+            <td>Inferred from recovery timing</td>
+            <td><span class="badge-pill pill-green">Self-resolved</span></td>
+          </tr>
+          <tr>
+            <td>09:50</td>
+            <td>Load drops to 0.21; vmstat shows si=so=0; only 10 connections</td>
+            <td>vmstat, ss -s, uptime</td>
+            <td><span class="badge-pill pill-green">Recovered</span></td>
+          </tr>
+          <tr>
+            <td>~10:00+</td>
+            <td>Zero HTTP requests confirmed in Apache log for spike window — attack ruled out</td>
+            <td>grep of Apache access log</td>
+            <td><span class="badge-pill pill-blue">Attack ruled out</span></td>
+          </tr>
+          <tr>
+            <td>11:13</td>
+            <td>Root crontab read: 09,39 line identified as culprit; appuser crontab shows midnight backup only</td>
+            <td>cat /var/spool/cron/*</td>
+            <td><span class="badge-pill pill-purple">Root cause confirmed</span></td>
+          </tr>
+          <tr>
+            <td>11:14</td>
+            <td>Full /etc/cron.d/ audit completed; all cron jobs catalogued</td>
+            <td>cat /etc/cron.d/*</td>
+            <td><span class="badge-pill pill-blue">Audit complete</span></td>
+          </tr>
+          <tr>
+            <td>11:32</td>
+            <td>Second performance check: load 3.92/4.55/5.33; RAM 4.1Gi available; 10 PHP workers</td>
+            <td>uptime, free -h, nproc</td>
+            <td><span class="badge-pill pill-orange">Elevated</span></td>
+          </tr>
+          <tr>
+            <td>11:35</td>
+            <td>New disk stall detected: vda at 100% util, 0 ops/sec, iowait 74%</td>
+            <td>iostat -x 1 5</td>
+            <td><span class="badge-pill pill-red">New issue</span></td>
+          </tr>
+          <tr>
+            <td>11:35</td>
+            <td>2 D-state PHP workers for psplagos confirmed blocked on disk stall</td>
+            <td>ps aux grep " D "</td>
+            <td><span class="badge-pill pill-orange">Consequence of stall</span></td>
+          </tr>
+          <tr>
+            <td>11:37</td>
+            <td>16 CLOSE-WAIT connections found — client browsers timed out during stall</td>
+            <td>ss -tan | awk | sort | uniq</td>
+            <td><span class="badge-pill pill-blue">Side effect</span></td>
+          </tr>
+          <tr>
+            <td>11:38</td>
+            <td>Full health snapshot: PHP workers 10, RAM healthy, disk space 28%</td>
+            <td>Combined all-in-one check</td>
+            <td><span class="badge-pill pill-orange">Elevated persisting</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="divider"></div>
+
+    <p style="font-weight:600; margin-bottom:12px;">Key lessons from this incident:</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon" style="color:var(--accent);"><i class="fa-solid fa-clock"></i></div>
+        <h4>Lesson 1: Timing is evidence</h4>
+        <p>A spike that starts at :09 and :39 every hour — exactly when a cron fires — is not coincidence. Always check the crontab when you see periodic, self-resolving load spikes.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--green);"><i class="fa-solid fa-file-waveform"></i></div>
+        <h4>Lesson 2: Logs tell the truth</h4>
+        <p>Zero Apache requests during a load spike immediately eliminates all traffic-based attack theories. Always check the access log before escalating to security response.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--orange);"><i class="fa-solid fa-hard-drive"></i></div>
+        <h4>Lesson 3: /tmp I/O matters</h4>
+        <p>PHP session files live in /tmp by default. A slow /tmp device creates a hidden performance bottleneck that manifests as load spikes during any cron that accesses /tmp.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--red);"><i class="fa-solid fa-database"></i></div>
+        <h4>Lesson 4: D-state = disk wait</h4>
+        <p>A process in D state is not frozen or dead — it's waiting for the disk. Count D-state processes to quickly identify whether load spikes are I/O-driven rather than CPU-driven.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--accent2);"><i class="fa-solid fa-eye"></i></div>
+        <h4>Lesson 5: 100% util + 0 ops = stall</h4>
+        <p>High disk utilization with zero read/write operations per second is a contradiction that indicates a hung I/O request — not high workload. These require different remedies.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon" style="color:var(--yellow);"><i class="fa-solid fa-list-check"></i></div>
+        <h4>Lesson 6: Audit crons completely</h4>
+        <p>cPanel servers have crons in 4 locations: user crontabs (/var/spool/cron/), /etc/cron.d/, and the periodic directories. A complete investigation must check all of them.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <i class="fa-solid fa-list-check"></i>
+      <div>
+        <strong>Priority Action List (ordered by impact):</strong>
+        <ol style="margin-top:8px; padding-left:20px; line-height:2.2;">
+          <li><strong>Move PHP session.save_path off /tmp</strong> — eliminates the root cause of the cron-triggered worker avalanche permanently</li>
+          <li><strong>Block 185.208.159.109</strong> — <code>csf -d 185.208.159.109</code> — 396 failed SSH brute force attempts</li>
+          <li><strong>Reduce clean_user_php_sessions to nightly</strong> — belt-and-suspenders alongside the session path change</li>
+          <li><strong>Reclaim MySQL swap</strong> — <code>swapoff -a &amp;&amp; swapon -a</code> at 2–4 AM — MySQL's 206MB residue</li>
+          <li><strong>Investigate psplagos slow queries</strong> — both afternoon D-state workers were this site; check its slow query log</li>
+          <li><strong>Report stall to host if recurs</strong> — 100% disk util / 0 ops pattern is a VPS infrastructure problem</li>
+          <li><strong>Set up UptimeRobot monitoring</strong> — free uptime monitoring with instant alerts at uptimerobot.com</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<!-- ═══════════════════════════════════════════ FOOTER -->
+<footer>
+  <p>Live Server Diagnostics — Performance Investigation Field Guide &nbsp;·&nbsp; <span>vps01.example.net</span> &nbsp;·&nbsp; April 2, 2026</p>
+  <p style="margin-top:6px; font-size:11px;">Built with GitHub Copilot — documenting a real investigation for operational reference and learning</p>
+</footer>
+
+<script src="../assets/private-values-loader.js" data-secret-src="../secrets/private-values.json"></script>
+<script src="../assets/theme-toggle.js"></script>
+</body>
+</html>
