@@ -133,58 +133,6 @@ Then open:
 http://localhost:8000/
 ```
 
-## Publishing to GitHub Pages
-
-One straightforward approach:
-
-1. Push this directory to a GitHub repository.
-2. Make sure `index.html` is at the repository root.
-3. In GitHub repository settings, enable GitHub Pages.
-4. Select the branch and root folder you want to publish from.
-5. GitHub Pages will serve the static site automatically.
-
-## Editing Workflow
-
-Recommended workflow when updating or adding guides:
-
-1. Start from `index.html` and keep the homepage descriptions aligned with the actual pages.
-2. Put individual guide pages in `pages/`.
-3. Reuse the shared theme assets in `assets/`.
-4. Prefer generic infrastructure examples instead of real hostnames, usernames, or customer identifiers.
-5. Re-check the public copy for sensitive strings before publishing.
-
-## Public Writing Guidelines
-
-To keep future guides safe for public release:
-
-- Use example domains from `example.com`, `example.net`, or `example.org`
-- Use documentation-safe IP ranges such as `203.0.113.0/24`
-- Use placeholder usernames like `adminuser`, `deployuser`, or `appuser`
-- Avoid exposing real customer names, project names, cron paths, credentials, tokens, or internal hostnames
-- Keep examples realistic enough that the guide still feels operationally useful
-
-## Important Security Note
-
-If this repository will be made public, review all non-page files carefully before pushing.
-
-In particular:
-
-- Any backup scripts
-- Shell snippets
-- Application config files
-- Vendor or sample files copied from real systems
-
-Public documentation can be sanitized while the repository still contains secrets elsewhere. Always audit the full repo, not just the pages.
-
-## Future Improvements
-
-Possible future enhancements:
-
-- Add a search page or client-side filtering on the homepage
-- Add tags for guide categories such as `security`, `performance`, `backups`, and `laravel`
-- Add a changelog section for guide updates
-- Extract repeated HTML shell/layout pieces into a small static-site workflow if the collection grows
-
 ## License / Usage
 
 Use this repository as a personal operational handbook, a portfolio artifact, or a public learning resource.
