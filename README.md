@@ -136,5 +136,3 @@ http://localhost:8000/
 ## License / Usage
 
 Use this repository as a personal operational handbook, a portfolio artifact, or a public learning resource.
-
-If you continue expanding it publicly, keep privacy-first editing as a core rule.
