@@ -1022,19 +1022,30 @@ e/n/d/r/c/s/q></span> <span class="cmd">q</span></pre>
       </div>
     </div>
 
-    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">The PHP backup script uses <code>shell_exec()</code> to invoke rclone commands. Here's how to integrate rclone into your database backup workflow.</p>
+    <p style="margin-bottom:16px; color:var(--muted); font-size:14px;">The PHP backup script uses <code>exec()</code> to invoke rclone commands, capture the exit code, and handle cron/web execution more safely. Here's a production-friendly pattern for integrating rclone into your database backup workflow.</p>
 
-    <h3 style="font-size:16px; margin: 20px 0 12px;">PHP Configuration Constants</h3>
+    <h3 style="font-size:16px; margin: 20px 0 12px;">PHP Configuration via <code>.env</code></h3>
 
     <div class="code-block">
       <div class="code-bar">
         <span class="lang"><i class="fa-brands fa-php"></i> php</span>
         <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
       </div>
-      <pre><span class="comment">// At the top of your backup script (e.g., cron_backup_all.php)</span>
-<span class="cmd">const</span> <span class="arg">RCLONE_REMOTE</span> = <span class="arg">'mega'</span>;          <span class="comment">// Name of your rclone remote</span>
-<span class="cmd">const</span> <span class="arg">RCLONE_BACKUP_DIR</span> = <span class="arg">'backups'</span>;    <span class="comment">// Folder in MEGA</span>
-<span class="cmd">define</span>(<span class="arg">'SQL_DIR'</span>, <span class="cmd">__DIR__</span> . <span class="arg">'/sql_files'</span>); <span class="comment">// Absolute path for temporary folder</span></pre>
+      <pre><span class="comment">// At the top of your backup script (e.g., backup_runner.php)</span>
+<span class="arg">loadEnvFile</span>(<span class="cmd">__DIR__</span> . <span class="arg">'/.env'</span>);
+
+<span class="cmd">define</span>(<span class="arg">'RCLONE_REMOTE'</span>, <span class="arg">envValue</span>(<span class="arg">'BACKUP_RCLONE_REMOTE'</span>, <span class="arg">'mega'</span>));
+<span class="cmd">define</span>(<span class="arg">'RCLONE_TARGET_DIR'</span>, <span class="arg">envValue</span>(<span class="arg">'BACKUP_RCLONE_TARGET_DIR'</span>, <span class="arg">'backups'</span>));
+<span class="cmd">define</span>(<span class="arg">'RCLONE_BINARY'</span>, <span class="arg">envValue</span>(<span class="arg">'BACKUP_RCLONE_BINARY'</span>, <span class="arg">'/usr/bin/rclone'</span>));
+<span class="cmd">define</span>(<span class="arg">'RCLONE_CONFIG_PATH'</span>, <span class="arg">resolveProjectPath</span>(<span class="arg">envValue</span>(<span class="arg">'BACKUP_RCLONE_CONFIG_PATH'</span>, <span class="arg">'rclone.conf'</span>)));
+<span class="cmd">define</span>(<span class="arg">'RCLONE_TIMEOUT_BINARY'</span>, <span class="arg">envValue</span>(<span class="arg">'BACKUP_RCLONE_TIMEOUT_BINARY'</span>, <span class="arg">'/usr/bin/timeout'</span>));
+<span class="cmd">define</span>(<span class="arg">'RCLONE_TIMEOUT_SECONDS'</span>, <span class="arg">envValue</span>(<span class="arg">'BACKUP_RCLONE_TIMEOUT_SECONDS'</span>, <span class="arg">'300'</span>));
+<span class="cmd">define</span>(<span class="arg">'SQL_DIR'</span>, <span class="arg">resolveProjectPath</span>(<span class="arg">envValue</span>(<span class="arg">'SQL_DIR_PATH'</span>, <span class="arg">'sql_files'</span>)));</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <i class="fa-solid fa-circle-info"></i>
+      <div><strong>Why the <code>BACKUP_RCLONE_*</code> names?</strong> Using generic env keys such as <code>RCLONE_BACKUP_DIR</code> can accidentally collide with real rclone flags and change command behavior. Prefixing your app settings avoids that class of bug.</div>
     </div>
 
     <h3 style="font-size:16px; margin: 20px 0 12px;">Core Upload Function</h3>
@@ -1046,23 +1057,26 @@ e/n/d/r/c/s/q></span> <span class="cmd">q</span></pre>
       </div>
       <pre><span class="comment">// Inside your backup loop, after compressing the SQL file:</span>
 
-<span class="comment">// Build the rclone remote path</span>
-<span class="arg">$remotePath</span> = <span class="arg">RCLONE_REMOTE</span> . <span class="arg">':'</span> . <span class="arg">RCLONE_BACKUP_DIR</span> . <span class="arg">'/'</span> . <span class="arg">basename</span>(<span class="arg">$gzFilename</span>);
+<span class="arg">$remotePath</span> = <span class="arg">RCLONE_REMOTE</span> . <span class="arg">':'</span> . <span class="arg">RCLONE_TARGET_DIR</span> . <span class="arg">'/'</span> . <span class="arg">basename</span>(<span class="arg">$gzFilename</span>);
 
-<span class="comment">// Explicitly set the config file path (CRITICAL for web/cron execution)</span>
-<span class="arg">$rcloneConfig</span> = <span class="cmd">__DIR__</span> . <span class="arg">'/rclone.conf'</span>;
+<span class="arg">$rcloneCommand</span> = <span class="arg">escapeshellarg</span>(<span class="arg">RCLONE_BINARY</span>)
+    . <span class="arg">' --config '</span> . <span class="arg">escapeshellarg</span>(<span class="arg">RCLONE_CONFIG_PATH</span>)
+    . <span class="arg">' copy '</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$gzFilename</span>)
+    . <span class="arg">' '</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$remotePath</span>)
+    . <span class="arg">' 2&gt;&amp;1'</span>;
 
-<span class="comment">// Use full path to rclone and pass the config flag</span>
-<span class="arg">$command</span> = <span class="arg">"/usr/bin/rclone --config "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$rcloneConfig</span>) . <span class="arg">" copy "</span> . 
-            <span class="arg">escapeshellarg</span>(<span class="arg">$gzFilename</span>) . <span class="arg">" "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$remotePath</span>) . <span class="arg">" 2>&1"</span>;
+<span class="comment">// Optional but recommended: prevent one stuck upload from blocking the whole job</span>
+<span class="arg">$command</span> = <span class="arg">escapeshellarg</span>(<span class="arg">RCLONE_TIMEOUT_BINARY</span>)
+    . <span class="arg">' --preserve-status '</span> . <span class="arg">escapeshellarg</span>(<span class="arg">RCLONE_TIMEOUT_SECONDS</span>)
+    . <span class="arg">' '</span> . <span class="arg">$rcloneCommand</span>;
 
-<span class="comment">// Execute the command and capture output and exit code</span>
 <span class="cmd">exec</span>(<span class="arg">$command</span>, <span class="arg">$outputArray</span>, <span class="arg">$exitCode</span>);
 <span class="arg">$output</span> = <span class="arg">implode</span>(<span class="arg">"\n"</span>, <span class="arg">$outputArray</span>);
 
-<span class="comment">// Check for errors using the exit code (0 means success)</span>
 <span class="cmd">if</span> (<span class="arg">$exitCode</span> === <span class="arg">0</span>) {
     <span class="cmd">echo</span> <span class="arg">"Backup for $name uploaded to MEGA successfully.\n"</span>;
+} <span class="cmd">elseif</span> (<span class="arg">$exitCode</span> === <span class="arg">124</span>) {
+    <span class="cmd">echo</span> <span class="arg">"Upload timed out for $name after "</span> . <span class="arg">RCLONE_TIMEOUT_SECONDS</span> . <span class="arg">" seconds.\n"</span>;
 } <span class="cmd">else</span> {
     <span class="cmd">echo</span> <span class="arg">"Error uploading $name (Exit Code $exitCode): "</span> . <span class="arg">$output</span> . <span class="arg">"\n"</span>;
 }</pre>
@@ -1070,12 +1084,12 @@ e/n/d/r/c/s/q></span> <span class="cmd">q</span></pre>
 
     <div class="callout callout-danger">
       <i class="fa-solid fa-skull-crossbones"></i>
-      <div><strong>Critical: Use Full Path to rclone</strong><br>Always use <code>/usr/bin/rclone</code> in your PHP code, not just <code>rclone</code>. When PHP's <code>shell_exec()</code> runs as the www-data or apache user, the PATH environment may not include where rclone is installed. Using the full path ensures the command is always found.</div>
+      <div><strong>Critical: Use Full Path to rclone</strong><br>Always use <code>/usr/bin/rclone</code> in your PHP code, not just <code>rclone</code>. When PHP's <code>exec()</code> runs as the www-data or apache user, the PATH environment may not include where rclone is installed. Using the full path ensures the command is always found.</div>
     </div>
 
     <div class="callout callout-warn">
       <i class="fa-solid fa-triangle-exclamation"></i>
-      <div><strong>escapeshellarg() is Essential:</strong> The <code>escapeshellarg()</code> function prevents shell injection attacks. Always wrap user-controlled paths and filenames with it before passing to <code>shell_exec()</code>.</div>
+      <div><strong>escapeshellarg() is Essential:</strong> The <code>escapeshellarg()</code> function prevents shell injection attacks. Always wrap paths and filenames with it before passing them into shell commands.</div>
     </div>
 
     <div class="callout callout-info">
@@ -1140,23 +1154,26 @@ e/n/d/r/c/s/q></span> <span class="cmd">q</span></pre>
         <span class="lang"><i class="fa-brands fa-php"></i> php</span>
         <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
       </div>
-      <pre><span class="arg">$command</span> = <span class="arg">"/usr/bin/rclone --config "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$rcloneConfig</span>) . <span class="arg">" copy --force "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$gzFilename</span>) . 
-            <span class="arg">" "</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$remotePath</span>) . <span class="arg">" 2>&1"</span>;</pre>
+      <pre><span class="arg">$rcloneCommand</span> = <span class="arg">escapeshellarg</span>(<span class="arg">RCLONE_BINARY</span>)
+    . <span class="arg">' --config '</span> . <span class="arg">escapeshellarg</span>(<span class="arg">RCLONE_CONFIG_PATH</span>)
+    . <span class="arg">' copy --force '</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$gzFilename</span>)
+    . <span class="arg">' '</span> . <span class="arg">escapeshellarg</span>(<span class="arg">$remotePath</span>)
+    . <span class="arg">' 2&gt;&amp;1'</span>;</pre>
     </div>
 
     <h3 style="font-size:16px; margin: 20px 0 12px;">Behavior Comparison</h3>
 
     <p style="margin-bottom:16px; color:var(--muted); font-size:14px;"><strong>Without --force (default):</strong></p>
     <ul style="margin: 0 0 16px 20px; color: var(--muted);">
-      <li>Day 1: Upload <code>century_backups_.sql.gz</code> (100MB) → MEGA has 100MB</li>
-      <li>Day 2: Try to upload <code>century_backups_.sql.gz</code> → File exists, skipped. MEGA still has 100MB (old version)</li>
+      <li>Day 1: Upload <code>tenant_alpha_backups_.sql.gz</code> (100MB) → MEGA has 100MB</li>
+      <li>Day 2: Try to upload <code>tenant_alpha_backups_.sql.gz</code> → File exists, skipped. MEGA still has 100MB (old version)</li>
       <li>Day 3+: Continue skipping. Old backup is stale!</li>
     </ul>
 
     <p style="margin-bottom:16px; color:var(--muted); font-size:14px;"><strong>With --force:</strong></p>
     <ul style="margin: 0 0 16px 20px; color: var(--muted);">
-      <li>Day 1: Upload <code>century_backups_.sql.gz</code> (100MB) → MEGA has 100MB</li>
-      <li>Day 2: Upload <code>century_backups_.sql.gz</code> (105MB, newer) → MEGA overwrites, now has 105MB (latest version)</li>
+      <li>Day 1: Upload <code>tenant_alpha_backups_.sql.gz</code> (100MB) → MEGA has 100MB</li>
+      <li>Day 2: Upload <code>tenant_alpha_backups_.sql.gz</code> (105MB, newer) → MEGA overwrites, now has 105MB (latest version)</li>
       <li>Day 3+: Always have the most recent backup, storage stays ~constant</li>
     </ul>
 
@@ -1206,13 +1223,13 @@ e/n/d/r/c/s/q></span> <span class="cmd">q</span></pre>
               <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
             </div>
             <pre><span class="comment"># Run database backups daily at 2:00 AM</span>
-<span class="cmd">0 2 * * *</span> <span class="arg">cd /home/appuser/public_html/backup_services && /usr/bin/php cron_backup_all.php >> backup.log 2>&1</span></pre>
+<span class="cmd">0 2 * * *</span> <span class="arg">cd /home/appuser/projects/backup-services && /usr/bin/php backup_runner.php >> backup.log 2>&1</span></pre>
           </div>
           <p style="margin-top:8px; color:var(--muted); font-size:13px;">Breaking this down:</p>
           <ul style="margin: 8px 0 0 20px; color: var(--muted); font-size: 13px;">
             <li><code>0 2 * * *</code> = Every day at 02:00 (2 AM) Africa/Lagos timezone</li>
-            <li><code>cd .../backup_services</code> = Navigate to the script directory</li>
-            <li><code>/usr/bin/php cron_backup_all.php</code> = Run the backup script with full PHP path</li>
+            <li><code>cd .../backup-services</code> = Navigate to the script directory</li>
+            <li><code>/usr/bin/php backup_runner.php</code> = Run the backup script with full PHP path</li>
             <li><code>>> backup.log 2>&1</code> = Append all output (stdout and stderr) to backup.log</li>
           </ul>
         </div>
@@ -1241,7 +1258,7 @@ e/n/d/r/c/s/q></span> <span class="cmd">q</span></pre>
               <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
             </div>
             <pre><span class="cmd">crontab</span> <span class="flag">-l</span>
-<span class="ok">0 2 * * * cd /home/appuser/public_html/backup_services && /usr/bin/php cron_backup_all.php >> backup.log 2>&1</span></pre>
+<span class="ok">0 2 * * * cd /home/appuser/projects/backup-services && /usr/bin/php backup_runner.php >> backup.log 2>&1</span></pre>
           </div>
           <p style="margin-top:8px; color: var(--green); font-size:13px;"><strong>✓ Cron job successfully scheduled!</strong> Your backups will now run automatically daily.</p>
         </div>
@@ -1338,9 +1355,9 @@ e/n/d/r/c/s/q></span> <span class="cmd">q</span></pre>
 <span class="cmd">rclone</span> <span class="arg">du mega:backups/</span>
 
 <span class="comment"># Example output:</span>
-<span class="out">       104857600 century_backups_.sql.gz
-        52428800 olamper_eti_osa_backups_.sql.gz
-        89128450 fav_alagabdo_backups_.sql.gz
+<span class="out">       104857600 tenant_alpha_backups_.sql.gz
+        52428800 tenant_beta_backups_.sql.gz
+        89128450 tenant_gamma_backups_.sql.gz
         ...
 Total: 1234567890 bytes (1.15 GB)</span></pre>
     </div>
@@ -1352,24 +1369,24 @@ Total: 1234567890 bytes (1.15 GB)</span></pre>
         <span class="lang"><i class="fa-solid fa-terminal"></i> text</span>
         <div class="dots"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div></div>
       </div>
-      <pre><span class="ok">Database century dumped successfully.
-SQL file compressed for century.
-Compressed backup for century uploaded to MEGA successfully.
-Temporary files for century deleted.
-Database olamper_eti_osa dumped successfully.
-SQL file compressed for olamper_eti_osa.
-Compressed backup for olamper_eti_osa uploaded to MEGA successfully.
-Temporary files for olamper_eti_osa deleted.
+      <pre><span class="ok">Database tenant_alpha dumped successfully.
+SQL file compressed for tenant_alpha.
+Compressed backup for tenant_alpha uploaded to MEGA successfully.
+Temporary files for tenant_alpha deleted.
+Database tenant_beta dumped successfully.
+SQL file compressed for tenant_beta.
+Compressed backup for tenant_beta uploaded to MEGA successfully.
+Temporary files for tenant_beta deleted.
 ... (more databases)
-Database nasbebag dumped successfully.
-SQL file compressed for nasbebag.
-Compressed backup for nasbebag uploaded to MEGA successfully.
-Temporary files for nasbebag deleted.</span></pre>
+Database tenant_omega dumped successfully.
+SQL file compressed for tenant_omega.
+Compressed backup for tenant_omega uploaded to MEGA successfully.
+Temporary files for tenant_omega deleted.</span></pre>
     </div>
 
     <div class="callout callout-info">
       <i class="fa-solid fa-circle-info"></i>
-      <div><strong>Log Rotation:</strong> Over time, <code>backup.log</code> will grow large. Consider using <code>logrotate</code> to archive old logs: <code>echo "/home/appuser/public_html/backup_services/backup.log { daily rotate 7 compress }" | sudo tee /etc/logrotate.d/backups</code></div>
+      <div><strong>Log Rotation:</strong> Over time, <code>backup.log</code> will grow large. Consider using <code>logrotate</code> to archive old logs: <code>echo "/home/appuser/projects/backup-services/backup.log { daily rotate 7 compress }" | sudo tee /etc/logrotate.d/backups</code></div>
     </div>
   </section>
 
@@ -1415,8 +1432,8 @@ Temporary files for nasbebag deleted.</span></pre>
           </tr>
           <tr>
             <td><strong>Upload hangs or times out</strong></td>
-            <td>Slow network or very large file (100MB+)</td>
-            <td>Check network: <code>ping mega.nz</code>. Test with smaller file first. Increase PHP timeout: <code>set_time_limit(0)</code></td>
+            <td>Slow network, very large file, or a stalled MEGA session</td>
+            <td>Wrap uploads with <code>timeout</code>, capture the exit code with <code>exec()</code>, and re-run the upload command manually with <code>-vv</code> for verbose rclone logs.</td>
           </tr>
           <tr>
             <td><strong>"Access Denied" when listing MEGA</strong></td>
@@ -1448,7 +1465,7 @@ Temporary files for nasbebag deleted.</span></pre>
 
     <div class="callout callout-danger">
       <i class="fa-solid fa-skull-crossbones"></i>
-      <div><strong>PHP shell_exec() Disabled:</strong> Some hosting providers disable <code>shell_exec()</code> or <code>exec()</code> for security. Test with: <code>php -r "echo shell_exec('whoami');"</code>. If it returns nothing or an error, contact your host to enable it, or switch to a provider that allows shell command execution.</div>
+      <div><strong>PHP Command Execution Disabled:</strong> Some hosting providers disable <code>shell_exec()</code> or <code>exec()</code> for security. Test with: <code>php -r "exec('whoami', $out, $code); var_dump($out, $code);"</code>. If it fails, contact your host to enable command execution, or switch to a provider that allows shell access from PHP/cron.</div>
     </div>
   </section>
 
@@ -1497,7 +1514,7 @@ Temporary files for nasbebag deleted.</span></pre>
       </div>
       <div class="check-item">
         <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
-        <span><strong>PHP Script Updated</strong> — <code>cron_backup_all.php</code> includes rclone integration with full path</span>
+        <span><strong>PHP Script Updated</strong> — <code>backup_runner.php</code> loads settings from <code>.env</code> and includes full-path rclone integration</span>
         <span class="step-label">Step 8</span>
       </div>
       <div class="check-item">
@@ -1512,7 +1529,7 @@ Temporary files for nasbebag deleted.</span></pre>
       </div>
       <div class="check-item">
         <div class="icon-status status-done"><i class="fa-solid fa-check"></i></div>
-        <span><strong>Manual Test Run Passed</strong> — <code>php cron_backup_all.php</code> executed without errors</span>
+        <span><strong>Manual Test Run Passed</strong> — <code>php backup_runner.php</code> executed without errors</span>
         <span class="step-label">Step 8</span>
       </div>
       <div class="check-item">
@@ -1534,7 +1551,7 @@ Temporary files for nasbebag deleted.</span></pre>
 
     <div class="divider"></div>
 
-    <p style="text-align: center; color: var(--green); font-size: 16px; font-weight: 600; margin-top: 32px;">
+    <p style="text-align: center; color: var(--green); font-size: 12px; font-weight: 300; margin-top: 32px;">
       <i class="fa-solid fa-circle-check" style="margin-right: 8px;"></i>
       All systems operational! Your backups are now automated and secure.
     </p>
